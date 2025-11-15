@@ -113,11 +113,6 @@ public class CuentaBancariaSolucion {
             cuentas[i] = new CuentaBancariaSolucion(i, 1000 * (i + 1));
         }
         
-        System.out.println("\n═══════════════════════════════════════════════════════════════════════════════════════════════════");
-        System.out.println("          SISTEMA DE TRANSFERENCIAS BANCARIAS - VERSIÓN SIN DEADLOCK");
-        System.out.println("               (Ordenamiento consistente de recursos: menor ID → mayor ID)");
-        System.out.println("═══════════════════════════════════════════════════════════════════════════════════════════════════\n");
-        
         System.out.println("TABLA DE TRANSFERENCIAS PLANIFICADAS:\n");
         imprimirTablaTransferencias(transferencias);
         

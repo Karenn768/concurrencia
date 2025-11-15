@@ -1,4 +1,4 @@
-package concurrencia.starvation.starvation_con_problema;
+package starvation.starvation_con_problema;
 
 import java.util.LinkedList;
 import java.util.Queue;

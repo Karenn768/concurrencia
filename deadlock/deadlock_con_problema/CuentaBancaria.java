@@ -108,12 +108,7 @@ class CuentaBancaria {
         for (int i = 0; i < 5; i++) {
             cuentas[i] = new CuentaBancaria(i, 1000 * (i + 1));
         }
-        
-        System.out.println("\n═══════════════════════════════════════════════════════════════════════════════════════════════════");
-        System.out.println("          SISTEMA DE TRANSFERENCIAS BANCARIAS - VERSIÓN CON DEADLOCK");
-        System.out.println("                    (Locks sin ordenamiento consistente)");
-        System.out.println("═══════════════════════════════════════════════════════════════════════════════════════════════════\n");
-        
+         
         System.out.println("TABLA DE TRANSFERENCIAS PLANIFICADAS:\n");
         imprimirTablaTransferencias(transferencias);
         

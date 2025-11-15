@@ -1,4 +1,4 @@
-package concurrencia.starvation.starvation_con_solucion;
+package starvation.starvation_con_solucion;
 
 import java.util.ArrayList;
 import java.util.Comparator;
