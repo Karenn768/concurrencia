@@ -1,24 +1,28 @@
 package deadlock.deadlock_con_solucion;
-  import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-public class CuentaBancariaSolucion {
+
+import java.util.concurrent.atomic.AtomicInteger;
+
+public class Deadlock_solucion {
     private final int numeroCuenta;
     private double saldo;
-    private static final DateTimeFormatter formatter = 
-        DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
+    public static AtomicInteger transferenciasExitosas = new AtomicInteger(0);
+    private static long startTime; // ✅ Tiempo de inicio en nanosegundos
     
-    public CuentaBancariaSolucion(int numeroCuenta, double saldoInicial) {
+    public Deadlock_solucion(int numeroCuenta, double saldoInicial) {
         this.numeroCuenta = numeroCuenta;
         this.saldo = saldoInicial;
     }
     
-    private static String getTimestamp() {
-        return LocalDateTime.now().format(formatter);
+    // ✅ Nuevo método: tiempo transcurrido desde el inicio en ms
+    private static String getElapsedTime() {
+        long elapsedNanos = System.nanoTime() - startTime;
+        double elapsedMs = elapsedNanos / 1_000_000.0;
+        return String.format("%.2fms", elapsedMs);
     }
     
-    public void transferir(CuentaBancariaSolucion destino, double monto) {
-        final CuentaBancariaSolucion primera;
-        final CuentaBancariaSolucion segunda;
+    public void transferir(Deadlock_solucion destino, double monto) {
+        final Deadlock_solucion primera;
+        final Deadlock_solucion segunda;
         
         if (this.numeroCuenta < destino.numeroCuenta) {
             primera = this;
@@ -28,45 +32,43 @@ public class CuentaBancariaSolucion {
             segunda = this;
         }
 
-        System.out.println("[" + getTimestamp() + "] 🔄 " + Thread.currentThread().getName() + 
+        System.out.println("[" + getElapsedTime() + "] 🔄 " + Thread.currentThread().getName() + 
             " INTENTA bloquear cuentas " + primera.numeroCuenta + " y " + segunda.numeroCuenta + 
             " (orden: menor→mayor)");
         
         synchronized (primera) {
-            System.out.println("[" + getTimestamp() + "] 🔒 " + Thread.currentThread().getName() + 
+            System.out.println("[" + getElapsedTime() + "] 🔒 " + Thread.currentThread().getName() + 
                 " BLOQUEÓ cuenta " + primera.numeroCuenta);
             
             synchronized (segunda) {
-                System.out.println("[" + getTimestamp() + "] 🔒 " + Thread.currentThread().getName() + 
+                System.out.println("[" + getElapsedTime() + "] 🔒 " + Thread.currentThread().getName() + 
                     " BLOQUEÓ cuenta " + segunda.numeroCuenta);
                 
-                // ✅ Ahora estamos seguros: tenemos ambos locks, sin riesgo de deadlock.
-                // Realizamos la operación atómica completa:
-                if (this.saldo >= monto) { // 'this' sigue siendo el origen lógico
+                if (this.saldo >= monto) {
                     this.saldo -= monto;
-                    destino.saldo += monto; // Acceso directo válido: ya tenemos lock de ambas
+                    destino.saldo += monto;
                     
-                    // Simular procesamiento (solo para logs visibles)
                     try { Thread.sleep(100); } catch (InterruptedException e) {}
                     
-                    System.out.println("[" + getTimestamp() + "] ✓ " + Thread.currentThread().getName() + 
+                    System.out.println("[" + getElapsedTime() + "] ✓ " + Thread.currentThread().getName() + 
                         ": Transferencia exitosa " + this.numeroCuenta + "→" + 
                         destino.numeroCuenta + ", $" + String.format("%.0f", monto));
+                    
+                    transferenciasExitosas.incrementAndGet();
                 } else {
-                    System.out.println("[" + getTimestamp() + "] ✗ " + Thread.currentThread().getName() + 
+                    System.out.println("[" + getElapsedTime() + "] ✗ " + Thread.currentThread().getName() + 
                         ": Saldo insuficiente en cuenta " + this.numeroCuenta +
                         " (saldo: $" + String.format("%.0f", this.saldo) + ")");
                 }
             }
-            System.out.println("[" + getTimestamp() + "] ✅ " + Thread.currentThread().getName() + 
+            System.out.println("[" + getElapsedTime() + "] ✅ " + Thread.currentThread().getName() + 
                 " LIBERÓ cuenta " + segunda.numeroCuenta);
         }
-        System.out.println("[" + getTimestamp() + "] ✅ " + Thread.currentThread().getName() + 
+        System.out.println("[" + getElapsedTime() + "] ✅ " + Thread.currentThread().getName() + 
             " LIBERÓ cuenta " + primera.numeroCuenta);
     }
     
-    
-    public double getSaldo() {
+    public synchronized double getSaldo() {
         return saldo;
     }
     
@@ -93,7 +95,6 @@ public class CuentaBancariaSolucion {
         System.out.println("╚════════╩═══════════════════════════╩═══════════════════════════╩═══════════════════════════╝");
     }
     
-    
     public static void main(String[] args) {
         int[][][] transferencias = {
             {{0,1,200}, {1,2,300}, {2,0,150}},  // Thread 1
@@ -108,9 +109,9 @@ public class CuentaBancariaSolucion {
             {{4,3,350}, {3,2,250}, {2,4,200}}   // Thread 10
         };
         
-        CuentaBancariaSolucion[] cuentas = new CuentaBancariaSolucion[5];
+        Deadlock_solucion[] cuentas = new Deadlock_solucion[5];
         for (int i = 0; i < 5; i++) {
-            cuentas[i] = new CuentaBancariaSolucion(i, 1000 * (i + 1));
+            cuentas[i] = new Deadlock_solucion(i, 1000 * (i + 1));
         }
         
         System.out.println("TABLA DE TRANSFERENCIAS PLANIFICADAS:\n");
@@ -119,7 +120,7 @@ public class CuentaBancariaSolucion {
         System.out.println("\n\nSALDOS INICIALES:");
         System.out.println("─────────────────────────────────");
         double totalInicial = 0;
-        for (CuentaBancariaSolucion cuenta : cuentas) {
+        for (Deadlock_solucion cuenta : cuentas) {
             double saldo = cuenta.getSaldo();
             System.out.printf("  Cuenta %d: $%-6.0f\n", cuenta.getNumeroCuenta(), saldo);
             totalInicial += saldo;
@@ -129,9 +130,11 @@ public class CuentaBancariaSolucion {
         
         System.out.println("\n\n═══════════════════════════════════════════════════════════════════════════════════════════════════");
         System.out.println("                        EJECUTANDO TRANSFERENCIAS (CONCURRENTEMENTE)");
-        LocalDateTime inicio = LocalDateTime.now();
-        System.out.println("                              Inicio: " + inicio.format(
-            DateTimeFormatter.ofPattern("HH:mm:ss.SSS")));
+        
+        // ✅ Inicializar el contador de tiempo aquí
+        startTime = System.nanoTime();
+        long tiempoInicio = System.currentTimeMillis();
+        System.out.println("                              Inicio: " + tiempoInicio + " ms desde epoch");
         System.out.println("═══════════════════════════════════════════════════════════════════════════════════════════════════\n");
         
         Thread[] threads = new Thread[10];
@@ -143,30 +146,26 @@ public class CuentaBancariaSolucion {
                     int destino = transferencias[threadNum][j][1];
                     int monto = transferencias[threadNum][j][2];
                     
-                    System.out.println("[" + getTimestamp() + "] ▶️  " + Thread.currentThread().getName() + 
+                    System.out.println("[" + getElapsedTime() + "] ▶️  " + Thread.currentThread().getName() + 
                         " inicia Transferencia " + (j+1) + ": " + origen + "→" + destino + ", $" + monto);
                     
                     cuentas[origen].transferir(cuentas[destino], monto);
-                    
-                    try { Thread.sleep(15); } catch (InterruptedException e) {}
                 }
-                System.out.println("[" + getTimestamp() + "] 🏁 " + Thread.currentThread().getName() + 
-                    " COMPLETÓ todas sus transferencias");
             }, "Thread-" + (i + 1));
         }
         
-        System.out.println("🚀 Iniciando threads en orden secuencial...\n");
+        System.out.println("🚀 Iniciando threads...\n");
         for (int i = 0; i < 10; i++) {
-            System.out.println("[" + getTimestamp() + "] Iniciando " + threads[i].getName() + "...");
             threads[i].start();
-            try { Thread.sleep(17); } catch (InterruptedException e) {}
+            try { Thread.sleep(20); } catch (InterruptedException e) {} 
         }
         
+        System.out.println("\n⏰ Esperando hasta 3 segundos para que completen...\n");
         
         boolean deadlockDetectado = false;
         for (Thread thread : threads) {
             try {
-                thread.join(3000); // Aumentamos a 3 segundos (3000 ms) para dar más margen
+                thread.join(3000);
                 if (thread.isAlive()) {
                     deadlockDetectado = true;
                 }
@@ -177,14 +176,15 @@ public class CuentaBancariaSolucion {
         
         System.out.println("\n═══════════════════════════════════════════════════════════════════════════════════════════════════");
         System.out.println("                                    RESUMEN FINAL");
-        System.out.println("                              Fin: " + LocalDateTime.now().format(
-            DateTimeFormatter.ofPattern("HH:mm:ss.SSS")));
+        System.out.println("                              Tiempo transcurrido: " + getElapsedTime());
         System.out.println("═══════════════════════════════════════════════════════════════════════════════════════════════════\n");
         
-        System.out.println("SALDOS FINALES:");
+        System.out.println("✅ TRANSFERENCIAS COMPLETADAS: " + transferenciasExitosas.get() + "/30");
+        
+        System.out.println("\nSALDOS FINALES:");
         System.out.println("─────────────────────────────────");
         double totalFinal = 0;
-        for (CuentaBancariaSolucion cuenta : cuentas) {
+        for (Deadlock_solucion cuenta : cuentas) {
             double saldo = cuenta.getSaldo();
             System.out.printf("  Cuenta %d: $%-6.0f\n", cuenta.getNumeroCuenta(), saldo);
             totalFinal += saldo;
@@ -192,13 +192,17 @@ public class CuentaBancariaSolucion {
         System.out.println("─────────────────────────────────");
         System.out.printf("  Total:    $%-6.0f\n", totalFinal);
         
+        if (Math.abs(totalFinal - 15000) < 0.01) {
+            System.out.println("✅ TOTAL DE SALDOS CORRECTO: $15,000 (conservación del dinero)");
+        } else {
+            System.out.println("❌ ERROR: Total de saldos incorrecto. Debería ser $15,000");
+        }
+        
         if (deadlockDetectado) {
             System.out.println("\n  ⚠️  DEADLOCK DETECTADO (esto NO debería ocurrir con ordenamiento):");
             System.out.println("   • Revisar implementación de ordenamiento");
         } else {
             System.out.println("\n✅ Todas las transferencias completadas exitosamente");
-            System.out.println("   • Sin deadlock gracias al ordenamiento estricto de recursos (ID menor → ID mayor)");
         }
     }
-
 }
