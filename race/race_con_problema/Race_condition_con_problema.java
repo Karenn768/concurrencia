@@ -58,7 +58,7 @@ public class Race_condition_con_problema {
             // Tiempo aleatorio ANTES de la operación (simula procesamiento)
             Thread.sleep(rand.nextInt(5, 25)); // 5-24 ms
             
-            // ¡¡ESTA ES LA ZONA VULNERABLE!!
+           
             int temporal = stock[id];          // 1. Leer valor
             Thread.sleep(rand.nextInt(1, 5));  // 2. ¡¡Retraso CRÍTICO aquí!!
             temporal -= cantidad;              // 3. Modificar

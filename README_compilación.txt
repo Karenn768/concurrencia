@@ -40,7 +40,7 @@ javac deadlock/deadlock_con_problema/Deadlock_con_problema.java
 ```bash
 java deadlock.deadlock_con_problema.Deadlock_con_problema
 ```
-**Resultado esperado:** El programa se bloqueará y no completará todas las transferencias. Verás un mensaje indicando "DEADLOCK DETECTADO".
+**Resultado esperado:** El programa se bloqueará y no completará todas las transferencias.
 
 ---
 #### b) Deadlock con Solución
