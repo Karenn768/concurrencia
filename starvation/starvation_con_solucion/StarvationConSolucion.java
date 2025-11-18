@@ -1,424 +1,255 @@
 package starvation.starvation_con_solucion;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.*;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Implementación de un sistema de procesamiento de tareas SIN PROBLEMA DE STARVATION
- * 
- * Solución: Implementa AGING (envejecimiento) para evitar inanición.
- * Las tareas incrementan su prioridad efectiva con el tiempo de espera.
- * 
- * Características:
- * - Cola compartida con capacidad máxima de 20 tareas
- * - 3 tipos de tareas: Alta (A), Media (M), Baja (B)
- * - 5 threads productores: 60% B, 30% M, 10% A
- * - 3 threads consumidores
- * - Tiempos de procesamiento: A=50ms, M=100ms, B=150ms
- * - AGING: Incrementa prioridad cada 1000ms de espera
- */
 public class StarvationConSolucion {
-    
-    // Tipos de tareas
-    enum TipoTarea {
-        A(50, "Alta", 3),
-        M(100, "Media", 2),
-        B(150, "Baja", 1);
-        
-        private final int tiempoProcesamiento;
-        private final String nombre;
-        private final int prioridadBase;
-        
-        TipoTarea(int tiempo, String nombre, int prioridad) {
-            this.tiempoProcesamiento = tiempo;
-            this.nombre = nombre;
-            this.prioridadBase = prioridad;
+
+    // Clase anidada estática Task — igual, pero con método de prioridad dinámica
+    public static class Task {
+
+        public enum Type {
+            A(0),
+            M(1),
+            B(3);  // mantienes B=3 para prioridad baja, pero aging lo corregirá
+
+            public final int basePriority;
+
+            Type(int priority) {
+                this.basePriority = priority;
+            }
         }
-        
-        public int getTiempoProcesamiento() { return tiempoProcesamiento; }
-        public String getNombre() { return nombre; }
-        public int getPrioridadBase() { return prioridadBase; }
-    }
-    
-    // Clase que representa una tarea
-    static class Tarea {
-        private static int contadorId = 0;
-        private final int id;
-        private final TipoTarea tipo;
-        private final long tiempoCreacion;
-        
-        public Tarea(TipoTarea tipo) {
-            this.id = ++contadorId;
-            this.tipo = tipo;
-            this.tiempoCreacion = System.currentTimeMillis();
+
+        public final Type type;
+        public final long creationTime;
+
+        public Task(Type type) {
+            this.type = type;
+            this.creationTime = System.currentTimeMillis();
         }
-        
-        public int getId() { return id; }
-        public TipoTarea getTipo() { return tipo; }
-        public long getTiempoEspera() { 
-            return System.currentTimeMillis() - tiempoCreacion; 
+
+        // 🔁 Prioridad efectiva con aging
+        public int getEffectivePriority(long now) {
+            long age = now - creationTime; // en ms
+            if (type == Type.B) {
+                if (age > 6000) return 0; // >6s → promoción a A
+                if (age > 3000) return 1; // >3s → promoción a M
+            }
+            return type.basePriority;
         }
-        
-        // AGING: Calcula prioridad efectiva basada en tiempo de espera
-        public double getPrioridadEfectiva() {
-            long tiempoEspera = getTiempoEspera();
-            // Incrementa prioridad cada 1000ms (1 segundo)
-            double bonoEnvejecimiento = (tiempoEspera / 1000.0) * 0.5;
-            return tipo.getPrioridadBase() + bonoEnvejecimiento;
-        }
-        
+
         @Override
         public String toString() {
-            return String.format("Tarea#%d[%s,Prior:%.2f]", 
-                id, tipo.getNombre(), getPrioridadEfectiva());
+            return type.name();
         }
     }
-    
-    // Cola compartida de tareas con AGING
-    static class ColaCompartida {
-        private final List<Tarea> cola;
-        private final int capacidadMaxima;
-        private final Lock lock;
-        private int tareasAProcesadas = 0;
-        private int tareasMProcesadas = 0;
-        private int tareasBProcesadas = 0;
-        
-        public ColaCompartida(int capacidad) {
-            this.cola = new ArrayList<>();
-            this.capacidadMaxima = capacidad;
-            this.lock = new ReentrantLock();
-        }
-        
-        // Agregar tarea a la cola
-        public synchronized boolean agregar(Tarea tarea) throws InterruptedException {
-            while (cola.size() >= capacidadMaxima) {
-                wait(); // Espera si la cola está llena
+
+    private static final int CAPACITY = 20;
+    private static final long SIMULATION_TIME_MS = 10_000;
+
+    // Secuencia inicial fija (30 tareas) — idéntica
+    private static final Task.Type[] INITIAL_SEQUENCE = {
+        // 1-10
+        Task.Type.B, Task.Type.B, Task.Type.M, Task.Type.B, Task.Type.B, Task.Type.B,
+        Task.Type.A, Task.Type.M, Task.Type.B, Task.Type.B,
+        // 11-20
+        Task.Type.M, Task.Type.B, Task.Type.B, Task.Type.B, Task.Type.A, Task.Type.B,
+        Task.Type.M, Task.Type.B, Task.Type.B, Task.Type.B,
+        // 21-30
+        Task.Type.B, Task.Type.B, Task.Type.B, Task.Type.M, Task.Type.A, Task.Type.B,
+        Task.Type.B, Task.Type.M, Task.Type.B, Task.Type.B
+    };
+
+    // Contadores atómicos — igual
+    private static final AtomicInteger generatedA = new AtomicInteger();
+    private static final AtomicInteger generatedM = new AtomicInteger();
+    private static final AtomicInteger generatedB = new AtomicInteger();
+    private static final AtomicInteger processedA = new AtomicInteger();
+    private static final AtomicInteger processedM = new AtomicInteger();
+    private static final AtomicInteger processedB = new AtomicInteger();
+
+    private static long startTime;
+
+    public static void main(String[] args) throws InterruptedException {
+        // 🔁 Usamos una cola FIFO estándar — la prioridad se aplica al extraer, no al insertar
+        BlockingQueue<Task> queue = new LinkedBlockingQueue<>(CAPACITY);
+
+        ExecutorService producerPool = Executors.newFixedThreadPool(5);
+        ExecutorService consumerPool = Executors.newFixedThreadPool(3);
+
+        // Monitor — idéntico en formato
+        ScheduledExecutorService monitor = Executors.newSingleThreadScheduledExecutor();
+        monitor.scheduleAtFixedRate(() -> {
+            long now = System.currentTimeMillis();
+            List<Task> copy = new ArrayList<>(queue);
+
+            long pendientesA = copy.stream().filter(t -> t.type == Task.Type.A).count();
+            long pendientesM = copy.stream().filter(t -> t.type == Task.Type.M).count();
+            long pendientesB = copy.stream().filter(t -> t.type == Task.Type.B).count();
+
+            int procesadasA = processedA.get();
+            int procesadasM = processedM.get();
+            int procesadasB = processedB.get();
+
+            int generadasA = generatedA.get();
+            int generadasM = generatedM.get();
+            int generadasB = generatedB.get();
+
+            int sinProcesarA = generadasA - procesadasA;
+            int sinProcesarM = generadasM - procesadasM;
+            int sinProcesarB = generadasB - procesadasB;
+
+            String state = String.format(
+                "t=%.1fs | cola size=%d | Pendientes (A=%d, M=%d, B=%d) | Procesadas (A=%d, M=%d, B=%d) | Sin procesar (A=%d, M=%d, B=%d)",
+                (now - startTime) / 1000.0,
+                copy.size(),
+                pendientesA, pendientesM, pendientesB,
+                procesadasA, procesadasM, procesadasB,
+                sinProcesarA, sinProcesarM, sinProcesarB
+            );
+            System.out.println("[MONITOR] " + state);
+
+            // ✅ Ya NO mostramos advertencia de starvation (o sólo si es extremo)
+            if (pendientesB > 10 && (now - startTime) > 8000) {
+                System.out.println("*** ¡ATENCIÓN! Muchas B pendientes — revisar aging ***");
             }
-            cola.add(tarea);
-            notifyAll();
-            return true;
-        }
-        
-        // Obtener tarea CON AGING (evita starvation)
-        // SOLUCIÓN: Selecciona tarea con mayor prioridad efectiva
-        public synchronized Tarea obtener() throws InterruptedException {
-            while (cola.isEmpty()) {
-                wait();
-            }
-            
-            // POLÍTICA CON AGING: Ordenar por prioridad efectiva
-            Tarea tareaSeleccionada = cola.stream()
-                .max(Comparator.comparingDouble(Tarea::getPrioridadEfectiva))
-                .orElse(null);
-            
-            if (tareaSeleccionada != null) {
-                cola.remove(tareaSeleccionada);
-                
-                // Registrar estadísticas
-                switch (tareaSeleccionada.getTipo()) {
-                    case A: tareasAProcesadas++; break;
-                    case M: tareasMProcesadas++; break;
-                    case B: tareasBProcesadas++; break;
-                }
-            }
-            
-            notifyAll();
-            return tareaSeleccionada;
-        }
-        
-        public synchronized int getTamano() {
-            return cola.size();
-        }
-        
-        public synchronized int contarTareasTipoB() {
-            int count = 0;
-            for (Tarea t : cola) {
-                if (t.getTipo() == TipoTarea.B) {
-                    count++;
-                }
-            }
-            return count;
-        }
-        
-        public synchronized void mostrarEstado() {
-            System.out.println("\n=== ESTADO DE LA COLA ===");
-            System.out.println("Tamaño actual: " + cola.size() + "/" + capacidadMaxima);
-            int countA = 0, countM = 0, countB = 0;
-            for (Tarea t : cola) {
-                switch (t.getTipo()) {
-                    case A: countA++; break;
-                    case M: countM++; break;
-                    case B: countB++; break;
-                }
-            }
-            System.out.println("En cola -> Alta (A): " + countA + ", Media (M): " + countM + ", Baja (B): " + countB);
-            System.out.println("Procesadas -> Alta (A): " + tareasAProcesadas + 
-                             ", Media (M): " + tareasMProcesadas + 
-                             ", Baja (B): " + tareasBProcesadas);
-        }
-        
-        public synchronized int[] getEstadisticas() {
-            return new int[] { tareasAProcesadas, tareasMProcesadas, tareasBProcesadas };
-        }
-    }
-    
-    // Thread Productor
-    static class Productor extends Thread {
-        private final ColaCompartida cola;
-        private final int id;
-        private final Random random;
-        private final int totalTareas = 6; // 30 tareas / 5 productores
-        
-        public Productor(ColaCompartida cola, int id) {
-            this.cola = cola;
-            this.id = id;
-            this.random = new Random();
-        }
-        
-        @Override
-        public void run() {
-            try {
-                for (int i = 0; i < totalTareas; i++) {
-                    TipoTarea tipo = generarTipoTarea();
-                    Tarea tarea = new Tarea(tipo);
-                    
-                    cola.agregar(tarea);
-                    System.out.println("Productor-" + id + " creó " + tarea);
-                    
-                    // Pequeña pausa entre creaciones
-                    Thread.sleep(random.nextInt(100) + 50);
-                }
-                System.out.println(">>> Productor-" + id + " terminó de producir tareas");
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-        
-        // Genera tipos de tarea según distribución: 60% B, 30% M, 10% A
-        private TipoTarea generarTipoTarea() {
-            int rand = random.nextInt(100);
-            if (rand < 10) {
-                return TipoTarea.A; // 10%
-            } else if (rand < 40) {
-                return TipoTarea.M; // 30%
-            } else {
-                return TipoTarea.B; // 60%
-            }
-        }
-    }
-    
-    // Thread Consumidor
-    static class Consumidor extends Thread {
-        private final ColaCompartida cola;
-        private final int id;
-        private volatile boolean ejecutando = true;
-        
-        public Consumidor(ColaCompartida cola, int id) {
-            this.cola = cola;
-            this.id = id;
-        }
-        
-        @Override
-        public void run() {
-            try {
-                while (ejecutando) {
-                    Tarea tarea = cola.obtener();
-                    
-                    long tiempoEspera = tarea.getTiempoEspera();
-                    System.out.println(String.format(
-                        "Consumidor-%d procesando %s (esperó %d ms, prioridad efectiva: %.2f)",
-                        id, tarea, tiempoEspera, tarea.getPrioridadEfectiva()
-                    ));
-                    
-                    // Simular procesamiento
-                    Thread.sleep(tarea.getTipo().getTiempoProcesamiento());
-                    
-                    System.out.println(String.format(
-                        "Consumidor-%d completó %s",
-                        id, tarea
-                    ));
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-        
-        public void detener() {
-            ejecutando = false;
-            interrupt();
-        }
-    }
-    
-    // Monitor de tareas y tabla temporal
-    static class MonitorTareas extends Thread {
-        private final ColaCompartida cola;
-        private volatile boolean ejecutando = true;
-        private int maxTareasB = 0;
-        private long tiempoInicio;
-        
-        // Tabla de monitoreo temporal
-        private final int[] tiempos = {2, 4, 6, 8, 10}; // segundos
-        private int indiceActual = 0;
-        
-        public MonitorTareas(ColaCompartida cola, long tiempoInicio) {
-            this.cola = cola;
-            this.tiempoInicio = tiempoInicio;
-        }
-        
-        @Override
-        public void run() {
-            try {
-                while (ejecutando && indiceActual < tiempos.length) {
-                    Thread.sleep(2000); // Verificar cada 2 segundos
-                    
-                    long tiempoTranscurrido = (System.currentTimeMillis() - tiempoInicio) / 1000;
-                    
-                    if (tiempoTranscurrido >= tiempos[indiceActual]) {
-                        mostrarEstadoTemporal(tiempos[indiceActual]);
-                        indiceActual++;
-                    }
-                    
-                    int tareasB = cola.contarTareasTipoB();
-                    maxTareasB = Math.max(maxTareasB, tareasB);
-                    
-                    System.out.println("\n*** MONITOR: Tareas tipo B en espera: " + tareasB + " ***");
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-        
-        private void mostrarEstadoTemporal(int tiempo) {
-            int[] stats = cola.getEstadisticas();
-            System.out.println("\n╔════════════════════════════════════════════════════════╗");
-            System.out.println("║  TABLA DE MONITOREO TEMPORAL - " + tiempo + " segundos         ║");
-            System.out.println("╠════════════════════════════════════════════════════════╣");
-            System.out.println("║  Tareas A Procesadas: " + String.format("%-28d", stats[0]) + "║");
-            System.out.println("║  Tareas M Procesadas: " + String.format("%-28d", stats[1]) + "║");
-            System.out.println("║  Tareas B Procesadas: " + String.format("%-28d", stats[2]) + "║");
-            System.out.println("║  Tareas B en Espera:  " + String.format("%-28d", cola.contarTareasTipoB()) + "║");
-            System.out.println("╚════════════════════════════════════════════════════════╝");
-        }
-        
-        public void detener() {
-            ejecutando = false;
-            interrupt();
-        }
-        
-        public int getMaxTareasB() {
-            return maxTareasB;
-        }
-    }
-    
-    public static void main(String[] args) {
-        System.out.println("==============================================");
-        System.out.println("  SISTEMA SIN STARVATION (CON AGING)");
-        System.out.println("==============================================");
-        System.out.println("Características:");
-        System.out.println("- Cola compartida: capacidad 20 tareas");
-        System.out.println("- Tipos de tareas: A (10%), M (30%), B (60%)");
-        System.out.println("- 5 productores, 3 consumidores");
-        System.out.println("- SOLUCIÓN: AGING (envejecimiento)");
-        System.out.println("  * Prioridad base: A=3, M=2, B=1");
-        System.out.println("  * Incremento: +0.5 cada 1000ms de espera");
-        System.out.println("==============================================\n");
-        
-        ColaCompartida cola = new ColaCompartida(20);
-        
-        // Crear productores
-        Productor[] productores = new Productor[5];
+        }, 2, 1, TimeUnit.SECONDS);
+
+        startTime = System.currentTimeMillis();
+
+        // Productores — reutilizamos lógica idéntica
         for (int i = 0; i < 5; i++) {
-            productores[i] = new Productor(cola, i + 1);
+            final int id = i + 1;
+            producerPool.submit(() -> producer(id, queue));
         }
-        
-        // Crear consumidores
-        Consumidor[] consumidores = new Consumidor[3];
+
+        // 🔁 Consumidores inteligentes con aging
         for (int i = 0; i < 3; i++) {
-            consumidores[i] = new Consumidor(cola, i + 1);
+            final int id = i + 1;
+            consumerPool.submit(() -> smartConsumer(id, queue));
         }
-        
-        // Monitor de tareas
-        long tiempoInicio = System.currentTimeMillis();
-        MonitorTareas monitor = new MonitorTareas(cola, tiempoInicio);
-        
-        // Iniciar todos los threads
-        monitor.start();
-        
-        for (Productor p : productores) {
-            p.start();
+
+        Thread.sleep(SIMULATION_TIME_MS);
+
+        monitor.shutdownNow();
+        producerPool.shutdownNow();
+        consumerPool.shutdown();
+        consumerPool.awaitTermination(2, TimeUnit.SECONDS);
+
+        // Resultados finales — igual estilo
+        System.out.println("\n" + "=".repeat(60));
+        System.out.println("✅ SIMULACIÓN FINALIZADA (SIN STARVATION – CON AGING)");
+        System.out.println("=".repeat(60));
+        System.out.printf("Generadas: A=%d, M=%d, B=%d%n",
+            generatedA.get(), generatedM.get(), generatedB.get());
+        System.out.printf("Procesadas: A=%d, M=%d, B=%d%n",
+            processedA.get(), processedM.get(), processedB.get());
+        int pendingB = generatedB.get() - processedB.get();
+        System.out.printf("→ Tareas B PENDIENTES: %d%n", pendingB);
+
+        if (pendingB == 0) {
+            System.out.println("🎉 Todas las tareas B fueron procesadas: aging funcionó correctamente.");
+        } else {
+            System.out.println("ℹ️ Quedaron " + pendingB + " tareas B (esperado por límite de tiempo).");
         }
-        
-        for (Consumidor c : consumidores) {
-            c.start();
+    }
+
+    // 🔁 Productor — idéntico (reutilizable)
+    private static void producer(int id, BlockingQueue<Task> queue) {
+        Random rand = new Random(id * 12345);
+        int nextIndex = 0;
+
+        while (!Thread.currentThread().isInterrupted()) {
+            Task.Type type;
+            if (nextIndex < INITIAL_SEQUENCE.length) {
+                type = INITIAL_SEQUENCE[nextIndex++];
+            } else {
+                double r = rand.nextDouble();
+                if (r < 0.1) type = Task.Type.A;
+                else if (r < 0.4) type = Task.Type.M;
+                else type = Task.Type.B;
+            }
+
+            Task task = new Task(type);
+            try {
+                if (queue.offer(task, 100, TimeUnit.MILLISECONDS)) {
+                    switch (type) {
+                        case A -> generatedA.incrementAndGet();
+                        case M -> generatedM.incrementAndGet();
+                        case B -> generatedB.incrementAndGet();
+                    }
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+
+            try { Thread.sleep(100); } catch (InterruptedException e) { break; }
         }
-        
-        // Esperar a que terminen los productores
-        try {
-            for (Productor p : productores) {
-                p.join();
+    }
+
+    // 🔁 Consumidor inteligente — el corazón del aging
+    private static void smartConsumer(int id, BlockingQueue<Task> queue) {
+        while (!Thread.currentThread().isInterrupted()) {
+            List<Task> drained = new ArrayList<>();
+            Task best = null;
+
+            try {
+                // Extraer hasta 10 tareas para evaluar (evita scan completo si cola grande)
+                queue.drainTo(drained, 10);
+
+                if (drained.isEmpty()) {
+                    Task candidate = queue.poll(200, TimeUnit.MILLISECONDS);
+                    if (candidate != null) drained.add(candidate);
+                    if (drained.isEmpty()) continue;
+                }
+
+                long now = System.currentTimeMillis();
+
+                // Selección: la tarea con menor prioridad efectiva (y más antigua en empate)
+                best = drained.stream()
+                    .min((t1, t2) -> {
+                        int p1 = t1.getEffectivePriority(now);
+                        int p2 = t2.getEffectivePriority(now);
+                        if (p1 != p2) return Integer.compare(p1, p2);
+                        return Long.compare(t1.creationTime, t2.creationTime); // FIFO entre misma prioridad
+                    })
+                    .orElse(null);
+
+                if (best != null) {
+                    drained.remove(best);
+                    // Devolver el resto a la cola
+                    queue.addAll(drained);
+                } else {
+                    queue.addAll(drained);
+                    continue;
+                }
+
+                // Simular procesamiento
+                long procTimeMs = switch (best.type) {
+                    case A -> 50;
+                    case M -> 100;
+                    case B -> 150;
+                };
+                Thread.sleep(procTimeMs);
+
+                // Contar procesadas
+                switch (best.type) {
+                    case A -> processedA.incrementAndGet();
+                    case M -> processedM.incrementAndGet();
+                    case B -> processedB.incrementAndGet();
+                }
+
+            } catch (InterruptedException e) {
+                if (best != null) queue.offer(best);
+                queue.addAll(drained);
+                Thread.currentThread().interrupt();
+                break;
+            } catch (Exception e) {
+                if (best != null) queue.offer(best);
+                queue.addAll(drained);
             }
-            
-            System.out.println("\n>>> Todos los productores terminaron. Esperando 10 segundos...\n");
-            Thread.sleep(10000); // Esperar 10 segundos después de producción
-            
-            // Detener consumidores y monitor
-            for (Consumidor c : consumidores) {
-                c.detener();
-            }
-            monitor.detener();
-            
-            for (Consumidor c : consumidores) {
-                c.join();
-            }
-            monitor.join();
-            
-            long tiempoTotal = System.currentTimeMillis() - tiempoInicio;
-            
-            // Resumen final
-            System.out.println("\n==============================================");
-            System.out.println("  RESULTADOS FINALES");
-            System.out.println("==============================================");
-            cola.mostrarEstado();
-            
-            int[] stats = cola.getEstadisticas();
-            int totalProcesadas = stats[0] + stats[1] + stats[2];
-            
-            System.out.println("\nMáximo de tareas tipo B en espera simultáneas: " + monitor.getMaxTareasB());
-            System.out.println("Tiempo total de ejecución: " + (tiempoTotal / 1000.0) + " segundos");
-            
-            // Análisis
-            System.out.println("\n==============================================");
-            System.out.println("  ANÁLISIS DE RESULTADOS");
-            System.out.println("==============================================");
-            System.out.println("Total de tareas procesadas: " + totalProcesadas);
-            System.out.println("Distribución de procesamiento:");
-            System.out.println("  - Tareas A: " + stats[0] + " (" + (stats[0] * 100.0 / totalProcesadas) + "%)");
-            System.out.println("  - Tareas M: " + stats[1] + " (" + (stats[1] * 100.0 / totalProcesadas) + "%)");
-            System.out.println("  - Tareas B: " + stats[2] + " (" + (stats[2] * 100.0 / totalProcesadas) + "%)");
-            
-            System.out.println("\n*** SOLUCIÓN EXITOSA: El mecanismo de AGING garantizó ***");
-            System.out.println("*** que TODAS las tareas eventualmente se procesaran ***");
-            System.out.println("*** evitando la inanición de las tareas tipo B ***");
-            
-            System.out.println("\n==============================================");
-            System.out.println("  DESCRIPCIÓN DEL ALGORITMO AGING");
-            System.out.println("==============================================");
-            System.out.println("Pseudocódigo:");
-            System.out.println("1. Cada tarea tiene prioridad base (A=3, M=2, B=1)");
-            System.out.println("2. Al obtener tarea de la cola:");
-            System.out.println("   a. Para cada tarea calcular:");
-            System.out.println("      prioridad_efectiva = prioridad_base + (tiempo_espera/1000) * 0.5");
-            System.out.println("   b. Seleccionar tarea con mayor prioridad_efectiva");
-            System.out.println("3. Resultado: Las tareas antiguas aumentan su prioridad");
-            System.out.println("   garantizando que eventualmente sean procesadas");
-            System.out.println("==============================================");
-            
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         }
     }
 }
