@@ -1,35 +1,63 @@
-# Guía de Compilación y Ejecución de Ejemplos de Concurrencia
+# Guía Completa de Ejemplos de Concurrencia
 
-Este repositorio contiene ejemplos prácticos de problemas comunes en programación concurrente (Deadlock, Race Condition y Starvation), cada uno con una versión que demuestra el problema y otra que implementa una solución.
+Este repositorio contiene ejemplos prácticos y detallados sobre problemas comunes en programación concurrente, enfocados en ilustrar y resolver tres problemas clásicos: Deadlock (Interbloqueo), Race Condition (Condición de Carrera) y Starvation (Inanición).
+
+## Propósito del Proyecto
+
+El objetivo principal es ofrecer un recurso educativo para estudiantes y desarrolladores que deseen comprender mejor los desafíos y soluciones prácticas en la concurrencia mediante simulaciones claras y código funcional en Java.
 
 ## Estructura del Repositorio
 
-El proyecto está organizado en tres carpetas principales, una para cada problema de concurrencia:
+El proyecto está organizado en tres carpetas principales, cada una destinada a un problema concurrente específico:
 
 ```
 /
 ├── deadlock/
-│   ├── deadlock_con_problema/  # Demostración de un Deadlock
-│   └── deadlock_con_solucion/  # Soluciones para el Deadlock (Ordenamiento y Algoritmo del Banquero)
+│   ├── deadlock_con_problema/  # Implementación que demuestra un Deadlock
+│   └── deadlock_con_solucion/  # Soluciones para evitar y prevenir Deadlock (Ordenamiento y Algoritmo del Banquero)
 ├── race/
-│   ├── race_con_problema/      # Demostración de una Race Condition
-│   └── race_con_solucion/      # Soluciones para Race Condition (Mutex y Semáforos)
+│   ├── race_con_problema/      # Ejemplo que presenta una Race Condition
+│   └── race_con_solucion/      # Soluciones con Mutex y Semáforos
 └── starvation/
-    ├── starvation_con_problema/ # Demostración de Starvation
-    └── starvation_con_solucion/ # Solución para Starvation (Aging)
+    ├── starvation_con_problema/ # Simulación de Starvation
+    └── starvation_con_solucion/ # Solución usando técnica de Aging (Envejecimiento)
 ```
+
+## Detalle de Problemas y Soluciones
+
+### Deadlock (Interbloqueo)
+
+- **Problema:** Simula transferencias bancarias simultáneas que pueden quedar en espera circular y provocar bloqueo total del programa.
+- **Solución:** Se usan dos mecanismos:
+  - Ordenamiento de recursos para prevenir ciclos en adquisición de locks.
+  - Algoritmo del Banquero para evitar estados inseguros durante las transferencias.
+
+### Race Condition (Condición de Carrera)
+
+- **Problema:** Venta y reabastecimiento concurrente de inventario sin sincronización, lo que causa inconsistencias en el stock final.
+- **Solución:** Uso de mecanismos de sincronización:
+  - Mutex (ReentrantLock) para acceso exclusivo a recursos.
+  - Semáforos para controlar acceso a sección crítica.
+
+### Starvation (Inanición)
+
+- **Problema:** Procesamiento de tareas con prioridades donde las de baja prioridad pueden nunca ser atendidas.
+- **Solución:** Técnica de Aging que incrementa la prioridad con el tiempo para evitar inanición.
+
+## Tecnologías Utilizadas
+
+- Lenguaje: Java 100%
+- Herramientas: compilación y ejecución con JDK estándar
 
 ## Instrucciones de Compilación y Ejecución
 
-A continuación se detallan los comandos para compilar y ejecutar cada uno de los ejemplos. **Todos los comandos deben ejecutarse desde la raíz del proyecto (`/concurrencia/`)**.
+Todos los comandos se deben ejecutar desde la raíz del proyecto (`/concurrencia/`).
 
 ---
 
 ### 1. Deadlock (Interbloqueo)
 
 #### a) Deadlock con Problema
-
-Este ejemplo simula transferencias bancarias concurrentes que llevan a un interbloqueo, haciendo que el programa se congele.
 
 **Compilar:**
 ```bash
@@ -40,14 +68,11 @@ javac deadlock/deadlock_con_problema/Deadlock_con_problema.java
 ```bash
 java deadlock.deadlock_con_problema.Deadlock_con_problema
 ```
-**Resultado esperado:** El programa se bloqueará y no completará todas las transferencias.
+
+**Resultado esperado:** El programa se bloqueará y no completará las transferencias.
 
 ---
 #### b) Deadlock con Solución
-
-Este archivo contiene dos algoritmos para resolver el deadlock:
-1.  **Prevención (Ordenamiento de Recursos):** Los hilos adquieren los bloqueos de las cuentas en un orden numérico consistente, evitando el ciclo de espera.
-2.  **Evitación (Algoritmo del Banquero):** Un "banquero" centralizado analiza si conceder un recurso (realizar una transferencia) dejará al sistema en un estado seguro.
 
 **Compilar:**
 ```bash
@@ -58,15 +83,14 @@ javac deadlock/deadlock_con_solucion/Deadlock_solucion.java
 ```bash
 java deadlock.deadlock_con_solucion.Deadlock_solucion
 ```
-**Resultado esperado:** El programa ejecutará ambos algoritmos. En ambos casos, todas las transferencias se completarán exitosamente y el programa finalizará sin bloqueos.
+
+**Resultado esperado:** Ambas soluciones completan exitosamente las transferencias sin bloqueo.
 
 ---
 
 ### 2. Race Condition (Condición de Carrera)
 
 #### a) Race Condition con Problema
-
-Este ejemplo simula la venta y reabastecimiento concurrente de stock. Múltiples hilos leen y escriben en el mismo inventario sin sincronización, lo que resulta en un stock final incorrecto.
 
 **Compilar:**
 ```bash
@@ -77,14 +101,11 @@ javac race/race_con_problema/Race_condition_con_problema.java
 ```bash
 java race.race_con_problema.Race_condition_con_problema
 ```
-**Resultado esperado:** El stock final de los productos será inconsistente y variará en cada ejecución. El valor esperado (120 para el producto 0) no se cumplirá.
+
+**Resultado esperado:** Stock final inconsistente y variable en cada ejecución.
 
 ---
 #### b) Race Condition con Solución
-
-Este archivo implementa y compara dos mecanismos de sincronización para resolver la condición de carrera:
-1.  **Mutex (ReentrantLock):** Asegura que solo un hilo a la vez pueda modificar el stock de un producto específico.
-2.  **Semáforos:** Cumplen una función similar al mutex en este caso, permitiendo el acceso exclusivo a la sección crítica.
 
 **Compilar:**
 ```bash
@@ -95,15 +116,14 @@ javac race/race_con_solucion/Race_condition_solucion.java
 ```bash
 java race.race_con_solucion.Race_condition_solucion
 ```
-**Resultado esperado:** El programa ejecutará ambas versiones (Mutex y Semáforos). En ambos casos, el stock final será el correcto y consistente en todas las ejecuciones. Al final, se mostrará una comparación de rendimiento entre ambas soluciones.
+
+**Resultado esperado:** Stock consistente y correcto, con comparación de rendimiento entre Mutex y Semáforos.
 
 ---
 
 ### 3. Starvation (Inanición)
 
 #### a) Starvation con Problema
-
-Este ejemplo simula un sistema de procesamiento de tareas con tres prioridades (Alta, Media, Baja). Los consumidores siempre priorizan las tareas de tipo 'A' y 'M', lo que provoca que las tareas de tipo 'B' (Baja prioridad) nunca sean procesadas.
 
 **Compilar:**
 ```bash
@@ -114,12 +134,11 @@ javac starvation/starvation_con_problema/StarvationConProblema.java
 ```bash
 java starvation.starvation_con_problema.StarvationConProblema
 ```
-**Resultado esperado:** El programa finalizará, pero quedarán muchas tareas de tipo 'B' en la cola sin procesar. Un monitor advertirá sobre la posible inanición.
+
+**Resultado esperado:** Tareas de baja prioridad no procesadas y advertencia de inanición.
 
 ---
 #### b) Starvation con Solución
-
-Para resolver la inanición, este ejemplo implementa la técnica de **Aging (Envejecimiento)**. La prioridad de las tareas aumenta a medida que envejecen en la cola, garantizando que incluso las tareas de baja prioridad eventualmente sean seleccionadas.
 
 **Compilar:**
 ```bash
@@ -130,4 +149,25 @@ javac starvation/starvation_con_solucion/StarvationConSolucion.java
 ```bash
 java starvation.starvation_con_solucion.StarvationConSolucion
 ```
-**Resultado esperado:** Todas las tareas, incluidas las de tipo 'B', serán procesadas. El programa mostrará cómo la prioridad efectiva de las tareas 'B' aumenta con el tiempo, permitiéndoles competir con las de mayor prioridad inicial.
+
+**Resultado esperado:** Todas las tareas procesadas, con prioridades aumentando en tiempo.
+
+---
+
+## Cómo Contribuir
+
+1. Clona el proyecto.
+2. Crea una rama para tus mejoras.
+3. Realiza cambios y pruebas.
+4. Envía un pull request describiendo tus propuestas.
+
+## Créditos
+
+Autores originales y colaboradores:
+- Karenn768
+- WBOK-GM (Walter Alfonso)
+- Luisen1 (Luisen Hernandez)
+
+---
+
+Este proyecto tiene fines educativos para entender y resolver problemas de concurrencia en Java.
