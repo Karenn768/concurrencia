@@ -68,6 +68,7 @@ public class StarvationConProblema {
     public static void main(String[] args) throws InterruptedException {
         BlockingQueue<Task> queue = new PriorityBlockingQueue<>(CAPACITY, STATIC_PRIORITY_COMPARATOR);
 
+
         ExecutorService producerPool = Executors.newFixedThreadPool(5);
         ExecutorService consumerPool = Executors.newFixedThreadPool(3);
 
@@ -137,15 +138,38 @@ public class StarvationConProblema {
         consumerPool.awaitTermination(2, TimeUnit.SECONDS);
 
         // Resultados finales
-        System.out.println("\n" + "=".repeat(60));
-        System.out.println("✅ SIMULACIÓN FINALIZADA (CON STARVATION)");
-        System.out.println("=".repeat(60));
-        System.out.printf("Generadas: A=%d, M=%d, B=%d%n",
-            generatedA.get(), generatedM.get(), generatedB.get());
-        System.out.printf("Procesadas: A=%d, M=%d, B=%d%n",
-            processedA.get(), processedM.get(), processedB.get());
-        int pendingB = generatedB.get() - processedB.get();
-        System.out.printf("→ Tareas B PENDIENTES: %d%n", pendingB);
+    System.out.println("\n" + "=".repeat(60));
+    System.out.println("✅ SIMULACIÓN FINALIZADA (CON STARVATION)");
+    System.out.println("=".repeat(60));
+        
+    // Generadas por tipo
+    int genA = generatedA.get();
+    int genM = generatedM.get();
+    int genB = generatedB.get();
+    int totalGenerated = genA + genM + genB;
+    System.out.printf("Generadas: A=%d, M=%d, B=%d | Total=%d%n", genA, genM, genB, totalGenerated);
+        
+    // Procesadas por tipo
+    int procA = processedA.get();
+    int procM = processedM.get();
+    int procB = processedB.get();
+    int totalProcessed = procA + procM + procB;
+    System.out.printf("Procesadas: A=%d, M=%d, B=%d | Total=%d%n", procA, procM, procB, totalProcessed);
+        
+    // Pendientes por tipo y total
+    int pendingA = genA - procA;
+    int pendingM = genM - procM;
+    int pendingB = genB - procB;
+    int totalPending = pendingA + pendingM + pendingB;
+    System.out.printf("Pendientes: A=%d, M=%d, B=%d | Total=%d%n", pendingA, pendingM, pendingB, totalPending);
+        
+    // Mensajes específicos sobre B
+    if (pendingB == 0) {
+        System.out.println("🎉 Todas las tareas B fueron procesadas: aging funcionó correctamente.");
+    } else {
+        System.out.println("ℹ️ Quedaron " + pendingB + " tareas B (esperado por límite de tiempo).");
+    }
+
     }
 
     private static void producer(int id, BlockingQueue<Task> queue) {
@@ -171,7 +195,9 @@ public class StarvationConProblema {
                         case M -> generatedM.incrementAndGet();
                         case B -> generatedB.incrementAndGet();
                     }
+                    
                 }
+            
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
