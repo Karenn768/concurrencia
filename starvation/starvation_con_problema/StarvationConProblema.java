@@ -98,7 +98,7 @@ public class StarvationConProblema {
            String state = String.format(
                "t=%.1fs | cola size=%d | Pendientes (A=%d, M=%d, B=%d) | Procesadas (A=%d, M=%d, B=%d) | Sin procesar (A=%d, M=%d, B=%d)",
                (now - startTime) / 1000.0,
-               copy.size(),
+               CAPACITY,
                pendientesA, pendientesM, pendientesB,
                procesadasA, procesadasM, procesadasB,
                sinProcesarA, sinProcesarM, sinProcesarB);
