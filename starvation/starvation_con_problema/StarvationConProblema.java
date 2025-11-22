@@ -1,39 +1,68 @@
 package starvation.starvation_con_problema;
-import java.util.concurrent.*;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.*;
 
+
 public class StarvationConProblema {
 
-       // Clase anidada estática Task
-       public static class Task {
+    // Clase para almacenar el snapshot del monitor
+    static class MonitorSnapshot {
+        final double time;
+        final int queueSize;
+        final long pendingA;
+        final long pendingM;
+        final long pendingB;
+        final int processedA;
+        final int processedM;
+        final int processedB;
+        
+        public MonitorSnapshot(double time, int queueSize, 
+                              long pendingA, long pendingM, long pendingB,
+                              int processedA, int processedM, int processedB) {
+            this.time = time;
+            this.queueSize = queueSize;
+            this.pendingA = pendingA;
+            this.pendingM = pendingM;
+            this.pendingB = pendingB;
+            this.processedA = processedA;
+            this.processedM = processedM;
+            this.processedB = processedB;
+        }
+    }
 
-       public enum Type {
-           A(0),
-           M(1),
-           B(3);
+    // Variable para guardar el último snapshot
+    private static volatile MonitorSnapshot lastSnapshot = null;
 
-           public final int priority;
+    // Clase anidada estática Task
+    public static class Task {
 
-           Type(int priority) {
-               this.priority = priority;
-           }
-       }
+        public enum Type {
+            A(0),
+            M(1),
+            B(3);
 
-       public final Type type;
-       public final long creationTime;
+            public final int priority;
 
-       public Task(Type type) {
-           this.type = type;
-           this.creationTime = System.currentTimeMillis();
-       }
+            Type(int priority) {
+                this.priority = priority;
+            }
+        }
 
-       @Override
-       public String toString() {
-           return type.name();
-       }
+        public final Type type;
+        public final long creationTime;
+
+        public Task(Type type) {
+            this.type = type;
+            this.creationTime = System.currentTimeMillis();
+        }
+
+        @Override
+        public String toString() {
+            return type.name();
+        }
     }
 
     // Cola con capacidad acotada que respeta prioridades
@@ -52,12 +81,11 @@ public class StarvationConProblema {
         public void put(Task task) throws InterruptedException {
             lock.lock();
             try {
-                // Bloquea si la cola está llena
                 while (queue.size() >= capacity) {
                     notFull.await();
                 }
                 queue.add(task);
-                notEmpty.signal(); // Despierta a consumidores
+                notEmpty.signal();
             } finally {
                 lock.unlock();
             }
@@ -72,7 +100,7 @@ public class StarvationConProblema {
                     if (nanos <= 0) return null;
                 }
                 Task task = queue.poll();
-                notFull.signal(); // Despierta a productores
+                notFull.signal();
                 return task;
             } finally {
                 lock.unlock();
@@ -144,33 +172,42 @@ public class StarvationConProblema {
         ScheduledExecutorService monitor = Executors.newSingleThreadScheduledExecutor();
 
         monitor.scheduleAtFixedRate(() -> {
-           long now = System.currentTimeMillis();
-           List<Task> copy = queue.copy();
+            long now = System.currentTimeMillis();
+            List<Task> copy = queue.copy();
 
-           long pendientesA = copy.stream().filter(t -> t.type == Task.Type.A).count();
-           long pendientesM = copy.stream().filter(t -> t.type == Task.Type.M).count();
-           long pendientesB = copy.stream().filter(t -> t.type == Task.Type.B).count();
+            long pendientesA = copy.stream().filter(t -> t.type == Task.Type.A).count();
+            long pendientesM = copy.stream().filter(t -> t.type == Task.Type.M).count();
+            long pendientesB = copy.stream().filter(t -> t.type == Task.Type.B).count();
 
-           int procesadasA = processedA.get();
-           int procesadasM = processedM.get();
-           int procesadasB = processedB.get();
+            int procesadasA = processedA.get();
+            int procesadasM = processedM.get();
+            int procesadasB = processedB.get();
 
-           String state = String.format(
-               "t=%.1fs | cola size=%d/%d | Pendientes (A=%d, M=%d, B=%d) | Procesadas (A=%d, M=%d, B=%d)",
-               (now - startTime) / 1000.0,
-               copy.size(),
-               CAPACITY,
-               pendientesA, pendientesM, pendientesB,
-               procesadasA, procesadasM, procesadasB);
-       
-           System.out.println("[MONITOR] " + state);
-       
-           // Advertencia starvation
-           if (pendientesB > 5) {
-               System.out.println("*** ¡ADVERTENCIA! STARVATION DETECTADA: " + pendientesB + " tareas B esperando ***");
-           }
-    }, 2, 1, TimeUnit.SECONDS);
+            double currentTime = (now - startTime) / 1000.0;
 
+            // Guardar el snapshot actual
+            lastSnapshot = new MonitorSnapshot(
+                currentTime,
+                copy.size(),
+                pendientesA, pendientesM, pendientesB,
+                procesadasA, procesadasM, procesadasB
+            );
+
+            String state = String.format(
+                "t=%.1fs | cola size=%d/%d | Pendientes (A=%d, M=%d, B=%d) | Procesadas (A=%d, M=%d, B=%d)",
+                currentTime,
+                copy.size(),
+                CAPACITY,
+                pendientesA, pendientesM, pendientesB,
+                procesadasA, procesadasM, procesadasB);
+        
+            System.out.println("[MONITOR] " + state);
+        
+            // Advertencia starvation
+            if (pendientesB > 5) {
+                System.out.println("*** ¡ADVERTENCIA! STARVATION DETECTADA: " + pendientesB + " tareas B esperando ***");
+            }
+        }, 2, 1, TimeUnit.SECONDS);
 
         startTime = System.currentTimeMillis();
 
@@ -210,60 +247,63 @@ public class StarvationConProblema {
 
         // Resultados finales
         System.out.println("\n" + "=".repeat(60));
-        System.out.println("SIMULACIÓN FINALIZADA (CON STARVATION)");
+        System.out.println("SIMULACION FINALIZADA (CON STARVATION)");
         System.out.println("=".repeat(60));
         
-        // Generadas por tipo
-        int genA = generatedA.get();
-        int genM = generatedM.get();
-        int genB = generatedB.get();
-        int totalGenerated = genA + genM + genB;
-        System.out.printf("Generadas: A=%d, M=%d, B=%d | Total=%d%n", genA, genM, genB, totalGenerated);
-        
-        // Procesadas por tipo
-        int procA = processedA.get();
-        int procM = processedM.get();
-        int procB = processedB.get();
-        int totalProcessed = procA + procM + procB;
-        System.out.printf("Procesadas: A=%d, M=%d, B=%d | Total=%d%n", procA, procM, procB, totalProcessed);
-        
-        // Pendientes por tipo y total
-        int pendingA = genA - procA;
-        int pendingM = genM - procM;
-        int pendingB = genB - procB;
-        int totalPending = pendingA + pendingM + pendingB;
-        System.out.printf("Pendientes: A=%d, M=%d, B=%d | Total=%d%n", pendingA, pendingM, pendingB, totalPending);
-        
-        // Mensajes específicos
-        if (pendingB == 0) {
-            System.out.println("Todas las tareas B fueron procesadas: aging funcionó correctamente.");
-        } else {
-            System.out.println("Quedaron " + pendingB + " tareas B (esperado por starvation).");
+        // USAR DATOS DEL ÚLTIMO MONITOR (t10)
+        if (lastSnapshot != null) {
+            System.out.println("\nDATOS DEL ULTIMO MONITOR (t=" + String.format("%.1f", lastSnapshot.time) + "s):");
+            System.out.println("-".repeat(60));
+            
+            // Calcular generadas basándose en procesadas + pendientes del snapshot
+            int genASnapshot = lastSnapshot.processedA + (int)lastSnapshot.pendingA;
+            int genMSnapshot = lastSnapshot.processedM + (int)lastSnapshot.pendingM;
+            int genBSnapshot = lastSnapshot.processedB + (int)lastSnapshot.pendingB;
+            int totalGeneratedSnapshot = genASnapshot + genMSnapshot + genBSnapshot;
+            
+            System.out.printf("Generadas: A=%d, M=%d, B=%d | Total=%d%n", 
+                genASnapshot, genMSnapshot, genBSnapshot, totalGeneratedSnapshot);
+            
+            System.out.printf("Procesadas: A=%d, M=%d, B=%d | Total=%d%n", 
+                lastSnapshot.processedA, lastSnapshot.processedM, lastSnapshot.processedB,
+                lastSnapshot.processedA + lastSnapshot.processedM + lastSnapshot.processedB);
+            
+            System.out.printf("Pendientes: A=%d, M=%d, B=%d | Total=%d%n", 
+                lastSnapshot.pendingA, lastSnapshot.pendingM, lastSnapshot.pendingB,
+                lastSnapshot.pendingA + lastSnapshot.pendingM + lastSnapshot.pendingB);
+            
+            System.out.printf("Tamaño de cola: %d/%d%n", lastSnapshot.queueSize, CAPACITY);
+            
+            if (lastSnapshot.pendingB == 0) {
+                System.out.println("Todas las tareas B fueron procesadas: aging funciono correctamente.");
+            } else {
+                System.out.println("Quedaron " + lastSnapshot.pendingB + " tareas B (esperado por starvation).");
+            }
         }
         
         // NUEVA SALIDA: Tiempos de espera de tareas B
         System.out.println("\n" + "-".repeat(60));
-        System.out.println("ANÁLISIS DE TIEMPOS DE ESPERA (TAREAS B)");
+        System.out.println("ANALISIS DE TIEMPOS DE ESPERA (TAREAS B)");
         System.out.println("-".repeat(60));
         
         long maxWait = maxWaitB.get();
         int countB = countWaitB.get();
         long totalWait = totalWaitB.get();
         
-        System.out.printf("Tiempo máximo de espera de una tarea B: %d ms (%.2f s)%n", 
+        System.out.printf("Tiempo maximo de espera de una tarea B: %d ms (%.2f s)%n", 
             maxWait, maxWait / 1000.0);
         
         if (countB > 0) {
             long avgWait = totalWait / countB;
             System.out.printf("Tiempo promedio de espera de tareas B: %d ms (%.2f s)%n", 
                 avgWait, avgWait / 1000.0);
-            System.out.printf("Total de tareas B procesadas con medición: %d%n", countB);
+            System.out.printf("Total de tareas B procesadas con medicion: %d%n", countB);
         }
         
         if (maxWait > 5000) {
-            System.out.println("STARVATION SEVERA: Tareas B esperaron más de 5 segundos");
+            System.out.println("STARVATION SEVERA: Tareas B esperaron mas de 5 segundos");
         } else if (maxWait > 2000) {
-            System.out.println("STARVATION MODERADA: Tareas B esperaron más de 2 segundos");
+            System.out.println("STARVATION MODERADA: Tareas B esperaron mas de 2 segundos");
         } else {
             System.out.println("Tiempos de espera aceptables para tareas B");
         }
@@ -286,7 +326,6 @@ public class StarvationConProblema {
 
             Task task = new Task(type);
             try {
-                // put() bloqueará si la cola está llena (capacidad 20)
                 queue.put(task);
                 
                 switch (type) {
