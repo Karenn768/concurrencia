@@ -11,7 +11,7 @@ public class Deadlock_solucion {
     public static AtomicInteger transferenciasExitosas = new AtomicInteger(0);
     private static long startTime;
 
-    // ✅ Estructuras del algoritmo del banquero
+    //  Estructuras del algoritmo del banquero
     private static final int NUM_THREADS = 10;
     private static final int NUM_CUENTAS = 5;
     private static final ReentrantLock banqueroLock = new ReentrantLock(true);
@@ -54,16 +54,16 @@ public class Deadlock_solucion {
             segunda = this;
         }
 
-        System.out.println("[" + getElapsedTime() + "] 🔄 " + Thread.currentThread().getName() + 
+        System.out.println("[" + getElapsedTime() + "]  " + Thread.currentThread().getName() + 
             " INTENTA bloquear cuentas " + primera.numeroCuenta + " y " + segunda.numeroCuenta + 
             " (orden: menor→mayor)");
         
         synchronized (primera) {
-            System.out.println("[" + getElapsedTime() + "] 🔒 " + Thread.currentThread().getName() + 
+            System.out.println("[" + getElapsedTime() + "]  " + Thread.currentThread().getName() + 
                 " BLOQUEÓ cuenta " + primera.numeroCuenta);
             
             synchronized (segunda) {
-                System.out.println("[" + getElapsedTime() + "] 🔒 " + Thread.currentThread().getName() + 
+                System.out.println("[" + getElapsedTime() + "]  " + Thread.currentThread().getName() + 
                     " BLOQUEÓ cuenta " + segunda.numeroCuenta);
                 
                 if (this.saldo >= monto) {
@@ -83,10 +83,10 @@ public class Deadlock_solucion {
                         " (saldo: $" + String.format("%.0f", this.saldo) + ")");
                 }
             }
-            System.out.println("[" + getElapsedTime() + "] ✅ " + Thread.currentThread().getName() + 
+            System.out.println("[" + getElapsedTime() + "]  " + Thread.currentThread().getName() + 
                 " LIBERÓ cuenta " + segunda.numeroCuenta);
         }
-        System.out.println("[" + getElapsedTime() + "] ✅ " + Thread.currentThread().getName() + 
+        System.out.println("[" + getElapsedTime() + "]  " + Thread.currentThread().getName() + 
             " LIBERÓ cuenta " + primera.numeroCuenta);
     }
     
@@ -97,11 +97,11 @@ public class Deadlock_solucion {
     public static void inicializarBanquero(int[][][] transferencias, double[] saldosIniciales) {
         banqueroLock.lock();
         try {
-            System.out.println("\n🏦 INICIALIZANDO ALGORITMO DEL BANQUERO...\n");
+            System.out.println("\nINICIALIZANDO ALGORITMO DEL BANQUERO...\n");
             
             System.arraycopy(saldosIniciales, 0, disponible, 0, NUM_CUENTAS);
             
-            System.out.println("📊 Recursos disponibles iniciales:");
+            System.out.println("Recursos disponibles iniciales:");
             for (int i = 0; i < NUM_CUENTAS; i++) {
                 System.out.printf("   Cuenta %d: $%.0f\n", i, disponible[i]);
             }
@@ -112,7 +112,7 @@ public class Deadlock_solucion {
                 Arrays.fill(necesidad[i], 0);
             }
             
-            System.out.println("\n📋 Calculando necesidades máximas por thread...");
+            System.out.println("\nCalculando necesidades máximas por thread...");
             for (int t = 0; t < NUM_THREADS; t++) {
                 for (int i = 0; i < 3; i++) {
                     int origen = transferencias[t][i][0];
@@ -128,7 +128,7 @@ public class Deadlock_solucion {
                     }
                 }
             }
-            System.out.println("\n\n✅ Algoritmo del banquero inicializado correctamente\n");
+            System.out.println("\n\nAlgoritmo del banquero inicializado correctamente\n");
         } finally {
             banqueroLock.unlock();
         }
@@ -172,33 +172,33 @@ public class Deadlock_solucion {
         return true;
     }
     
-    // ✅ VERSIÓN MEJORADA: Usa await/signal en lugar de busy-wait
+    //  VERSIÓN MEJORADA: Usa await/signal en lugar de busy-wait
     public boolean transferirBanquero(Deadlock_solucion destino, double monto, int threadId, boolean verbose) {
         banqueroLock.lock();
         try {
             if (verbose) {
-                System.out.println("[" + getElapsedTime() + "] 🔄 Thread-" + (threadId + 1) + 
+                System.out.println("[" + getElapsedTime() + "]  Thread-" + (threadId + 1) + 
                     " INTENTA transferencia " + this.numeroCuenta + "→" + destino.numeroCuenta + 
                     " por $" + String.format("%.0f", monto));
             }
             
-            // ✅ Esperar hasta que los recursos estén disponibles (NO busy-wait)
+            //  Esperar hasta que los recursos estén disponibles (NO busy-wait)
             while (monto > disponible[this.numeroCuenta] || monto > necesidad[threadId][this.numeroCuenta]) {
                 if (monto > necesidad[threadId][this.numeroCuenta]) {
                     if (verbose) {
-                        System.out.println("[" + getElapsedTime() + "] ❌ Thread-" + (threadId + 1) + 
+                        System.out.println("[" + getElapsedTime() + "]  Thread-" + (threadId + 1) + 
                             " excede necesidad máxima");
                     }
                     return false;
                 }
                 
                 if (verbose) {
-                    System.out.println("[" + getElapsedTime() + "] ⏳ Thread-" + (threadId + 1) + 
+                    System.out.println("[" + getElapsedTime() + "]  Thread-" + (threadId + 1) + 
                         " espera recursos (await)");
                 }
                 
                 try {
-                    recursoDisponible.await(); // ✅ Libera el lock y espera notificación
+                    recursoDisponible.await(); // Libera el lock y espera notificación
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     return false;
@@ -206,7 +206,7 @@ public class Deadlock_solucion {
             }
             
             if (verbose) {
-                System.out.println("[" + getElapsedTime() + "] 🏦 Thread-" + (threadId + 1) + 
+                System.out.println("[" + getElapsedTime() + "] Thread-" + (threadId + 1) + 
                     " solicita $" + String.format("%.0f", monto) + " de cuenta " + this.numeroCuenta);
             }
             
@@ -216,34 +216,34 @@ public class Deadlock_solucion {
             necesidad[threadId][this.numeroCuenta] -= monto;
             
             if (verbose) {
-                System.out.println("[" + getElapsedTime() + "] 🔍 Thread-" + (threadId + 1) + 
+                System.out.println("[" + getElapsedTime() + "]  Thread-" + (threadId + 1) + 
                     " verificando estado seguro...");
             }
             
             // Verificar estado seguro
             if (!esEstadoSeguro()) {
-                // ✅ ROLLBACK completo
+                //  ROLLBACK completo
                 disponible[this.numeroCuenta] += monto;
                 asignacion[threadId][this.numeroCuenta] -= monto;
                 necesidad[threadId][this.numeroCuenta] += monto;
                 
                 if (verbose) {
-                    System.out.println("[" + getElapsedTime() + "] ⚠️  Thread-" + (threadId + 1) + 
+                    System.out.println("[" + getElapsedTime() + "]   Thread-" + (threadId + 1) + 
                         " RECHAZADO - Estado inseguro");
                 }
                 
-                // ✅ Notificar a otros threads que el estado cambió
+                //  Notificar a otros threads que el estado cambió
                 recursoDisponible.signalAll();
                 return false;
             }
             
             if (verbose) {
-                System.out.println("[" + getElapsedTime() + "] ✅ Thread-" + (threadId + 1) + 
+                System.out.println("[" + getElapsedTime() + "]  Thread-" + (threadId + 1) + 
                     " APROBADO - Estado seguro mantiene");
             }
             
             if (verbose) {
-                System.out.println("[" + getElapsedTime() + "] 🔒 Thread-" + (threadId + 1) + 
+                System.out.println("[" + getElapsedTime() + "]  Thread-" + (threadId + 1) + 
                     " accede a cuentas " + this.numeroCuenta + " y " + destino.numeroCuenta);
             }
             
@@ -262,21 +262,21 @@ public class Deadlock_solucion {
                 
                 transferenciasExitosasBanquero.incrementAndGet();
                 
-                // ✅ Liberar recursos después de la transferencia
+                //  Liberar recursos después de la transferencia
                 disponible[destino.numeroCuenta] += monto;
                 asignacion[threadId][this.numeroCuenta] -= monto;
                 
                 if (verbose) {
-                    System.out.println("[" + getElapsedTime() + "] 🔓 Thread-" + (threadId + 1) + 
+                    System.out.println("[" + getElapsedTime() + "]  Thread-" + (threadId + 1) + 
                         " liberó recursos de cuenta " + this.numeroCuenta);
                 }
                 
-                // ✅ Notificar a threads esperando que hay recursos disponibles
+                // Notificar a threads esperando que hay recursos disponibles
                 recursoDisponible.signalAll();
                 return true;
                 
             } else {
-                // ✅ ROLLBACK si saldo insuficiente
+                //  ROLLBACK si saldo insuficiente
                 disponible[this.numeroCuenta] += monto;
                 asignacion[threadId][this.numeroCuenta] -= monto;
                 necesidad[threadId][this.numeroCuenta] += monto;
@@ -374,7 +374,7 @@ public class Deadlock_solucion {
                     int destino = transferencias[threadNum][j][1];
                     int monto = transferencias[threadNum][j][2];
                     
-                    System.out.println("[" + getElapsedTime() + "] ▶️  " + Thread.currentThread().getName() + 
+                    System.out.println("[" + getElapsedTime() + "]   " + Thread.currentThread().getName() + 
                         " inicia Transferencia " + (j+1) + ": " + origen + "→" + destino + ", $" + monto);
                     
                     cuentas[origen].transferir(cuentas[destino], monto);
@@ -382,13 +382,13 @@ public class Deadlock_solucion {
             }, "Thread-" + (i + 1));
         }
         
-        System.out.println("🚀 Iniciando threads...\n");
+        System.out.println(" Iniciando threads...\n");
         for (int i = 0; i < 10; i++) {
             threads[i].start();
             try { Thread.sleep(20); } catch (InterruptedException e) {} 
         }
         
-        System.out.println("\n⏰ Esperando hasta 3 segundos para que completen...\n");
+        System.out.println("\n Esperando hasta 3 segundos para que completen...\n");
         
         boolean deadlockDetectado = false;
         for (Thread thread : threads) {
@@ -407,7 +407,7 @@ public class Deadlock_solucion {
         System.out.println("                              Tiempo transcurrido: " + getElapsedTime());
         System.out.println("═══════════════════════════════════════════════════════════════════════════════════════════════════\n");
         
-        System.out.println("✅ TRANSFERENCIAS COMPLETADAS: " + transferenciasExitosas.get() + "/30");
+        System.out.println(" TRANSFERENCIAS COMPLETADAS: " + transferenciasExitosas.get() + "/30");
         
         System.out.println("\nSALDOS FINALES:");
         System.out.println("─────────────────────────────────");
@@ -421,16 +421,16 @@ public class Deadlock_solucion {
         System.out.printf("  Total:    $%-6.0f\n", totalFinal);
         
         if (Math.abs(totalFinal - 15000) < 0.01) {
-            System.out.println("✅ TOTAL DE SALDOS CORRECTO: $15,000 (conservación del dinero)");
+            System.out.println(" TOTAL DE SALDOS CORRECTO: $15,000 (conservación del dinero)");
         } else {
-            System.out.println("❌ ERROR: Total de saldos incorrecto. Debería ser $15,000");
+            System.out.println(" ERROR: Total de saldos incorrecto. Debería ser $15,000");
         }
         
         if (deadlockDetectado) {
-            System.out.println("\n  ⚠️  DEADLOCK DETECTADO (esto NO debería ocurrir con ordenamiento):");
+            System.out.println("\n    DEADLOCK DETECTADO (esto NO debería ocurrir con ordenamiento):");
             System.out.println("   • Revisar implementación de ordenamiento");
         } else {
-            System.out.println("\n✅ Todas las transferencias completadas exitosamente");
+            System.out.println("\n Todas las transferencias completadas exitosamente");
         }
 
         // ═════════════════════════════════════════════════════════════════════════════
@@ -440,7 +440,7 @@ public class Deadlock_solucion {
         System.out.println("                   ALGORITMO 2: EVITACIÓN DE DEADLOCK (Banquero)");
         System.out.println("═══════════════════════════════════════════════════════════════════════════════════════════════════\n");
 
-        // ✅ 1. Reiniciar saldos
+        //  1. Reiniciar saldos
         double[] saldosInicialesBanquero = new double[5];
         for (int i = 0; i < 5; i++) {
             double saldoInicial = 1000 * (i + 1);
@@ -448,17 +448,17 @@ public class Deadlock_solucion {
             saldosInicialesBanquero[i] = saldoInicial;
         }
         
-        // ✅ 2. Reiniciar contadores
+        //  2. Reiniciar contadores
         transferenciasExitosasBanquero.set(0);
         
-        // ✅ 3. Inicializar banquero
+        //  3. Inicializar banquero
         inicializarBanquero(transferencias, saldosInicialesBanquero);
         
-        // ✅ 4. Reiniciar timer
+        //  4. Reiniciar timer
         startTime = System.nanoTime();
         System.out.println("═══════════════════════════════════════════════════════════════════════════════════════════════════\n");
 
-        // ✅ 5. Ejecutar threads con Banquero 
+        //  5. Ejecutar threads con Banquero 
         Thread[] threadsBanquero = new Thread[10];
         for (int i = 0; i < 10; i++) {
             final int threadNum = i;
@@ -468,7 +468,7 @@ public class Deadlock_solucion {
                     int destino = transferencias[threadNum][j][1];
                     int monto = transferencias[threadNum][j][2];
                     
-                    System.out.println("[" + getElapsedTime() + "] ▶️  Thread-" + (threadNum + 1) + 
+                    System.out.println("[" + getElapsedTime() + "]   Thread-" + (threadNum + 1) + 
                         " inicia Transferencia " + (j+1) + ": " + origen + "→" + destino + ", $" + monto);
                     // Cambiar a true si se quiere ver más detalles de las operaciones del banquero
                     cuentas[origen].transferirBanquero(cuentas[destino], monto, threadNum, false);
@@ -476,18 +476,18 @@ public class Deadlock_solucion {
             }, "Thread-" + (i + 1));
         }
 
-        System.out.println("🚀 Iniciando threads con Banquero...\n");
+        System.out.println(" Iniciando threads con Banquero...\n");
         for (int i = 0; i < 10; i++) {
             threadsBanquero[i].start();
             try { Thread.sleep(20); } catch (InterruptedException e) {}
         }
         
-        System.out.println("\n⏰ Esperando hasta 10 segundos para que completen...\n");
+        System.out.println("\n Esperando hasta 10 segundos para que completen...\n");
         
         boolean timeout = false;
         for (Thread thread : threadsBanquero) {
             try {
-                thread.join(10000); // ✅ Reducido de 30s a 10s
+                thread.join(10000); // Reducido de 30s a 10s
                 if (thread.isAlive()) {
                     timeout = true;
                 }
@@ -496,13 +496,13 @@ public class Deadlock_solucion {
             }
         }
 
-        // ✅ 6. Mostrar resumen final
+        //  6. Mostrar resumen final
         System.out.println("\n═══════════════════════════════════════════════════════════════════════════════════════════════════");
         System.out.println("                                RESUMEN ALGORITMO BANQUERO");
         System.out.println("                              Tiempo transcurrido: " + getElapsedTime());
         System.out.println("═══════════════════════════════════════════════════════════════════════════════════════════════════\n");
 
-        System.out.println("✅ TRANSFERENCIAS COMPLETADAS: " + transferenciasExitosasBanquero.get() + "/30\n");
+        System.out.println(" TRANSFERENCIAS COMPLETADAS: " + transferenciasExitosasBanquero.get() + "/30\n");
 
         System.out.println("SALDOS FINALES (BANQUERO):");
         System.out.println("─────────────────────────────────");
@@ -516,15 +516,15 @@ public class Deadlock_solucion {
         System.out.printf("  Total:    $%-6.0f\n", totalFinalBanquero);
         
         if (Math.abs(totalFinalBanquero - 15000) < 0.01) {
-            System.out.println("✅ TOTAL DE SALDOS CORRECTO: $15,000 (conservación del dinero)");
+            System.out.println(" TOTAL DE SALDOS CORRECTO: $15,000 (conservación del dinero)");
         } else {
-            System.out.println("❌ ERROR: Total de saldos incorrecto. Debería ser $15,000");
+            System.out.println(" ERROR: Total de saldos incorrecto. Debería ser $15,000");
         }
         
         if (timeout) {
-            System.out.println("\n⚠️  TIMEOUT: Algunos threads no completaron");
+            System.out.println("\n  TIMEOUT: Algunos threads no completaron");
         } else {
-            System.out.println("\n✅ Todas las transferencias completadas - Estado seguro garantizado");
+            System.out.println("\n Todas las transferencias completadas - Estado seguro garantizado");
         }
     }
 }

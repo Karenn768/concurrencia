@@ -210,7 +210,7 @@ public class StarvationConProblema {
 
         // Resultados finales
         System.out.println("\n" + "=".repeat(60));
-        System.out.println("✅ SIMULACIÓN FINALIZADA (CON STARVATION)");
+        System.out.println("SIMULACIÓN FINALIZADA (CON STARVATION)");
         System.out.println("=".repeat(60));
         
         // Generadas por tipo
@@ -236,36 +236,36 @@ public class StarvationConProblema {
         
         // Mensajes específicos
         if (pendingB == 0) {
-            System.out.println("🎉 Todas las tareas B fueron procesadas: aging funcionó correctamente.");
+            System.out.println("Todas las tareas B fueron procesadas: aging funcionó correctamente.");
         } else {
-            System.out.println("ℹ️ Quedaron " + pendingB + " tareas B (esperado por starvation).");
+            System.out.println("Quedaron " + pendingB + " tareas B (esperado por starvation).");
         }
         
         // NUEVA SALIDA: Tiempos de espera de tareas B
         System.out.println("\n" + "-".repeat(60));
-        System.out.println("⏱️  ANÁLISIS DE TIEMPOS DE ESPERA (TAREAS B)");
+        System.out.println("ANÁLISIS DE TIEMPOS DE ESPERA (TAREAS B)");
         System.out.println("-".repeat(60));
         
         long maxWait = maxWaitB.get();
         int countB = countWaitB.get();
         long totalWait = totalWaitB.get();
         
-        System.out.printf("⏱️  Tiempo máximo de espera de una tarea B: %d ms (%.2f s)%n", 
+        System.out.printf("Tiempo máximo de espera de una tarea B: %d ms (%.2f s)%n", 
             maxWait, maxWait / 1000.0);
         
         if (countB > 0) {
             long avgWait = totalWait / countB;
-            System.out.printf("⏱️  Tiempo promedio de espera de tareas B: %d ms (%.2f s)%n", 
+            System.out.printf("Tiempo promedio de espera de tareas B: %d ms (%.2f s)%n", 
                 avgWait, avgWait / 1000.0);
-            System.out.printf("⏱️  Total de tareas B procesadas con medición: %d%n", countB);
+            System.out.printf("Total de tareas B procesadas con medición: %d%n", countB);
         }
         
         if (maxWait > 5000) {
-            System.out.println("⚠️  STARVATION SEVERA: Tareas B esperaron más de 5 segundos");
+            System.out.println("STARVATION SEVERA: Tareas B esperaron más de 5 segundos");
         } else if (maxWait > 2000) {
-            System.out.println("⚠️  STARVATION MODERADA: Tareas B esperaron más de 2 segundos");
+            System.out.println("STARVATION MODERADA: Tareas B esperaron más de 2 segundos");
         } else {
-            System.out.println("✅ Tiempos de espera aceptables para tareas B");
+            System.out.println("Tiempos de espera aceptables para tareas B");
         }
     }
 

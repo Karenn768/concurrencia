@@ -164,9 +164,8 @@ java starvation.starvation_con_solucion.StarvationConSolucion
 ## Créditos
 
 Autores originales y colaboradores:
-- Karenn768
+- Karenn768 (Karen Castro)
 - WBOK-GM (Walter Alfonso)
-- Luisen1 (Luisen Hernandez)
 
 ---
 

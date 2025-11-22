@@ -118,12 +118,12 @@ public class Race_condition_solucion {
     // =============================
     public static void main(String[] args) throws InterruptedException {
         System.out.println("=".repeat(60));
-        System.out.println("📊 COMPARACIÓN DE RENDIMIENTO: MUTEX vs SEMÁFOROS");
+        System.out.println("COMPARACIÓN DE RENDIMIENTO: MUTEX vs SEMÁFOROS");
         System.out.println("=".repeat(60));
         
         // Medir versión con Mutex
         long tiempoTotalMutex = 0;
-        System.out.println("\n⏱️  Ejecutando versión con MUTEX (ReentrantLock)...");
+        System.out.println("\nEjecutando versión con MUTEX (ReentrantLock)...");
         
         for (int run = 1; run <= EJECUCIONES; run++) {
             VersionMutex inventario = new VersionMutex();
@@ -140,7 +140,7 @@ public class Race_condition_solucion {
         
         // Medir versión con Semáforos
         long tiempoTotalSemaphores = 0;
-        System.out.println("\n⏱️  Ejecutando versión con SEMÁFOROS...");
+        System.out.println("\nEjecutando versión con SEMÁFOROS...");
         
         for (int run = 1; run <= EJECUCIONES; run++) {
             VersionSemaphores inventario = new VersionSemaphores();
@@ -163,13 +163,13 @@ public class Race_condition_solucion {
         double overhead = ((promedioSemaphores / promedioMutex) - 1) * 100;
         
         System.out.println("\n" + "-".repeat(60));
-        System.out.printf("📈 RESULTADOS PROMEDIO (%d ejecuciones):%n", EJECUCIONES);
+        System.out.printf("RESULTADOS PROMEDIO (%d ejecuciones):%n", EJECUCIONES);
         System.out.printf("   • MUTEX :   %.2f ms%n", promedioMutex);
         System.out.printf("   • SEMÁFOROS:               %.2f ms%n", promedioSemaphores);
         System.out.printf("   • Overhead de semáforos:   %.1f%%%n", overhead);
         System.out.println("-".repeat(60));
         
-        System.out.println("\n✅ CONCLUSIÓN:");
+        System.out.println("\nCONCLUSIÓN:");
         if (overhead > 0) {
             System.out.printf("Los semáforos son un %.1f%% más lentos que los mutex para este caso de uso.%n", overhead);
         } else {

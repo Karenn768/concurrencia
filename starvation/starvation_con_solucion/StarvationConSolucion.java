@@ -120,7 +120,7 @@ public class StarvationConSolucion {
         consumerPool.awaitTermination(2, TimeUnit.SECONDS);
 
         System.out.println("\n" + "=".repeat(60));
-        System.out.println("✅ SIMULACIÓN FINALIZADA (CON AGING)");
+        System.out.println("SIMULACIÓN FINALIZADA (CON AGING)");
         System.out.println("=".repeat(60));
 
         int genA = generatedA.get();
@@ -142,14 +142,14 @@ public class StarvationConSolucion {
         System.out.printf("Pendientes: A=%d, M=%d, B=%d | Total=%d%n", pendingA, pendingM, pendingB, totalPending);
 
         if (pendingB == 0) {
-            System.out.println("🎉 Todas las tareas B fueron procesadas: aging funcionó correctamente.");
+            System.out.println("Todas las tareas B fueron procesadas: aging funcionó correctamente.");
         } else {
-            System.out.println("ℹ️ Quedaron " + pendingB + " tareas B (esperado por límite de tiempo).");
+            System.out.println("Quedaron " + pendingB + " tareas B (esperado por límite de tiempo).");
         }
         
         // NUEVA SALIDA: Análisis detallado de tiempos de espera por tipo
         System.out.println("\n" + "=".repeat(60));
-        System.out.println("⏱️  ANÁLISIS DETALLADO DE TIEMPOS DE ESPERA");
+        System.out.println("ANÁLISIS DETALLADO DE TIEMPOS DE ESPERA");
         System.out.println("=".repeat(60));
         
         printWaitTimeStats("TAREAS A (Prioridad 0)", maxWaitA, totalWaitA, countWaitA);
@@ -160,11 +160,11 @@ public class StarvationConSolucion {
         System.out.println("\n" + "-".repeat(60));
         long maxB = maxWaitB.get();
         if (maxB <= 1000) {
-            System.out.println("✅ AGING EFECTIVO: Tareas B procesadas dentro de 1 segundo");
+            System.out.println("AGING EFECTIVO: Tareas B procesadas dentro de 1 segundo");
         } else if (maxB <= 3000) {
-            System.out.println("⚠️  AGING PARCIAL: Tareas B esperaron hasta " + (maxB/1000.0) + " segundos");
+            System.out.println("AGING PARCIAL: Tareas B esperaron hasta " + (maxB/1000.0) + " segundos");
         } else {
-            System.out.println("❌ AGING INSUFICIENTE: Tareas B esperaron más de 3 segundos");
+            System.out.println("AGING INSUFICIENTE: Tareas B esperaron más de 3 segundos");
         }
     }
     

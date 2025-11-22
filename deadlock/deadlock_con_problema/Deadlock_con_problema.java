@@ -8,14 +8,14 @@ class Deadlock_con_problema {
     private final int numeroCuenta;
     private double saldo;
     public static AtomicInteger transferenciasExitosas = new AtomicInteger(0);
-    private static long startTime; // ✅ Tiempo de inicio en nanosegundos
+    private static long startTime; //  Tiempo de inicio en nanosegundos
     
     public Deadlock_con_problema(int numeroCuenta, double saldoInicial) {
         this.numeroCuenta = numeroCuenta;
         this.saldo = saldoInicial;
     }
     
-    // ✅ Nuevo método: tiempo transcurrido desde el inicio en ms
+    //  Nuevo método: tiempo transcurrido desde el inicio en ms
     private static String getElapsedTime() {
         long elapsedNanos = System.nanoTime() - startTime;
         double elapsedMs = elapsedNanos / 1_000_000.0;
@@ -23,25 +23,25 @@ class Deadlock_con_problema {
     }
     
     public void transferir(Deadlock_con_problema destino, double monto) {
-        System.out.println("[" + getElapsedTime() + "] 🔄 " + Thread.currentThread().getName() + 
+        System.out.println("[" + getElapsedTime() + "] " + Thread.currentThread().getName() + 
             " INTENTA bloquear cuenta " + this.numeroCuenta);
         
         synchronized (this) {
-            System.out.println("[" + getElapsedTime() + "] 🔒 " + Thread.currentThread().getName() + 
+            System.out.println("[" + getElapsedTime() + "] " + Thread.currentThread().getName() + 
                 " BLOQUEÓ cuenta " + this.numeroCuenta + 
                 " | Ahora intenta bloquear cuenta " + destino.numeroCuenta);
             
             if (this.saldo >= monto) {
                 this.saldo -= monto;
                 
-                // ✅ AUMENTADO para forzar deadlock: 300ms en lugar de 100ms
+                //  AUMENTADO para forzar deadlock: 300ms en lugar de 100ms
                 try { Thread.sleep(300); } catch (InterruptedException e) {}
                 
-                System.out.println("[" + getElapsedTime() + "] ⏳ " + Thread.currentThread().getName() + 
+                System.out.println("[" + getElapsedTime() + "] " + Thread.currentThread().getName() + 
                     " INTENTA bloquear cuenta " + destino.numeroCuenta);
                 
                 synchronized (destino) {
-                    System.out.println("[" + getElapsedTime() + "] 🔒 " + Thread.currentThread().getName() + 
+                    System.out.println("[" + getElapsedTime() + "] " + Thread.currentThread().getName() + 
                         " BLOQUEÓ cuenta " + destino.numeroCuenta);
                     
                     destino.depositar(monto);
@@ -49,10 +49,10 @@ class Deadlock_con_problema {
                         ": Transferencia exitosa " + this.numeroCuenta + "→" + 
                         destino.numeroCuenta + ", $" + String.format("%.0f", monto));
                     
-                    transferenciasExitosas.incrementAndGet(); // ✅ Contar transferencia exitosa
+                    transferenciasExitosas.incrementAndGet(); // Contar transferencia exitosa
                 }
                 
-                System.out.println("[" + getElapsedTime() + "] ✅ " + Thread.currentThread().getName() + 
+                System.out.println("[" + getElapsedTime() + "] " + Thread.currentThread().getName() + 
                     " LIBERÓ cuenta " + destino.numeroCuenta);
             } else {
                 System.out.println("[" + getElapsedTime() + "] ✗ " + Thread.currentThread().getName() + 
@@ -60,7 +60,7 @@ class Deadlock_con_problema {
             }
         }
         
-        System.out.println("[" + getElapsedTime() + "] ✅ " + Thread.currentThread().getName() + 
+        System.out.println("[" + getElapsedTime() + "] " + Thread.currentThread().getName() + 
             " LIBERÓ cuenta " + this.numeroCuenta);
     }
     
@@ -131,7 +131,7 @@ class Deadlock_con_problema {
         System.out.println("\n\n═══════════════════════════════════════════════════════════════════════════════════════════════════");
         System.out.println("                        EJECUTANDO TRANSFERENCIAS (CONCURRENTEMENTE)");
         
-        // ✅ Inicializar el contador de tiempo aquí
+        //  Inicializar el contador de tiempo aquí
         startTime = System.nanoTime();
         long tiempoInicio = System.currentTimeMillis();
         System.out.println("                              Inicio: " + tiempoInicio + " ms desde epoch");
@@ -146,7 +146,7 @@ class Deadlock_con_problema {
                     int destino = transferencias[threadNum][j][1];
                     int monto = transferencias[threadNum][j][2];
                     
-                    System.out.println("[" + getElapsedTime() + "] ▶️  " + Thread.currentThread().getName() + 
+                    System.out.println("[" + getElapsedTime() + "] " + Thread.currentThread().getName() + 
                         " inicia Transferencia " + (j+1) + ": " + origen + "→" + destino + ", $" + monto);
                     
                     cuentas[origen].transferir(cuentas[destino], monto);
@@ -154,13 +154,13 @@ class Deadlock_con_problema {
             }, "Thread-" + (i + 1));
         }
         
-        System.out.println("🚀 Iniciando threads...\n");
+        System.out.println("Iniciando threads...\n");
         for (int i = 0; i < 10; i++) {
             threads[i].start();
             try { Thread.sleep(17); } catch (InterruptedException e) {} 
         }
         
-        System.out.println("\n⏰ Esperando hasta 5 segundos para que completen (timeout para detectar deadlock)...\n");
+        System.out.println("\nEsperando hasta 5 segundos para que completen (timeout para detectar deadlock)...\n");
         
         boolean deadlockDetectado = false;
         Thread[] threadsVivos = new Thread[threads.length];
@@ -168,7 +168,7 @@ class Deadlock_con_problema {
         
         for (Thread thread : threads) {
             try {
-                thread.join(5000); // ✅ Timeout aumentado a 5 segundos
+                thread.join(5000); //  Timeout aumentado a 5 segundos
                 if (thread.isAlive()) {
                     deadlockDetectado = true;
                     threadsVivos[countVivos++] = thread;
@@ -186,7 +186,7 @@ class Deadlock_con_problema {
         System.out.println("                              Tiempo transcurrido: " + getElapsedTime());
         System.out.println("═══════════════════════════════════════════════════════════════════════════════════════════════════\n");
         
-        System.out.println("✅ TRANSFERENCIAS COMPLETADAS: " + transferenciasExitosas.get() + "/30");
+        System.out.println("\nTRANSFERENCIAS COMPLETADAS: " + transferenciasExitosas.get() + "/30");
         
         System.out.println("\nSALDOS FINALES:");
         System.out.println("─────────────────────────────────");
@@ -200,7 +200,7 @@ class Deadlock_con_problema {
         System.out.printf("  Total:    $%-6.0f\n", totalFinal);
         
         if (deadlockDetectado) {
-            System.out.println("\n  ⚠️  DEADLOCK DETECTADO:");
+            System.out.println("\n  DEADLOCK DETECTADO:");
             System.out.println("   • Transferencias completadas: " + transferenciasExitosas.get() + "/30");
             System.out.println("   • Threads bloqueados:");
             
@@ -211,7 +211,7 @@ class Deadlock_con_problema {
                 }
             }
             
-            System.out.println("\n📸 ¡CAPTURA DE PANTALLA REQUERIDA!");
+            System.out.println("\n¡CAPTURA DE PANTALLA REQUERIDA!");
             System.out.println("   Ejecuta estos comandos en otra terminal mientras el programa está bloqueado:");
             System.out.println("   $ jps  # Busca el PID de este proceso Java");
             System.out.println("   $ jstack <PID> > thread_dump.txt");

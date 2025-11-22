@@ -32,12 +32,12 @@ public class Deadlock_banquero {
     
     public static void inicializarBanquero(int[][][] transferencias, double[] saldosIniciales) {
         synchronized (LOCK) {
-            System.out.println("\n🏦 INICIALIZANDO ALGORITMO DEL BANQUERO...\n");
+            System.out.println("\nINICIALIZANDO ALGORITMO DEL BANQUERO...\n");
             
             // Copiar recursos disponibles
             System.arraycopy(saldosIniciales, 0, disponible, 0, NUM_CUENTAS);
             
-            System.out.println("📊 Recursos disponibles iniciales:");
+            System.out.println("Recursos disponibles iniciales:");
             for (int i = 0; i < NUM_CUENTAS; i++) {
                 System.out.printf("   Cuenta %d: $%.0f\n", i, disponible[i]);
             }
@@ -51,7 +51,7 @@ public class Deadlock_banquero {
             
             // Calcular necesidades máximas por thread
             // La necesidad máxima es la suma TOTAL de lo que cada thread extraerá de cada cuenta
-            System.out.println("\n📋 Calculando necesidades máximas por thread...");
+            System.out.println("\nCalculando necesidades máximas por thread...");
             for (int t = 0; t < NUM_THREADS; t++) {
                 for (int i = 0; i < 3; i++) {
                     int origen = transferencias[t][i][0];
@@ -69,7 +69,7 @@ public class Deadlock_banquero {
                     }
                 }
             }
-            System.out.println("\n\n✅ Algoritmo del banquero inicializado correctamente\n");
+            System.out.println("\n\nAlgoritmo del banquero inicializado correctamente\n");
         }
     }
     
@@ -118,7 +118,7 @@ public class Deadlock_banquero {
     
     public void transferir(Deadlock_banquero destino, double monto, int threadId, boolean verbose) {
         if (verbose) {
-            System.out.println("[" + getElapsedTime() + "] 🔄 Thread-" + (threadId + 1) + 
+            System.out.println("[" + getElapsedTime() + "] Thread-" + (threadId + 1) + 
                 " INTENTA transferencia " + this.numeroCuenta + "→" + destino.numeroCuenta + 
                 " por $" + String.format("%.0f", monto) + " (usando lock global del banquero)");
         }
@@ -126,14 +126,14 @@ public class Deadlock_banquero {
         // TODO con el lock global del banquero
         synchronized (LOCK) {
             if (verbose) {
-                System.out.println("[" + getElapsedTime() + "] 🏦 Thread-" + (threadId + 1) + 
+                System.out.println("[" + getElapsedTime() + "] Thread-" + (threadId + 1) + 
                     " solicita $" + String.format("%.0f", monto) + " de cuenta " + this.numeroCuenta);
             }
             
             // Verificar si excede necesidad máxima
             if (monto > necesidad[threadId][this.numeroCuenta]) {
                 if (verbose) {
-                    System.out.println("[" + getElapsedTime() + "] ❌ Thread-" + (threadId + 1) + 
+                    System.out.println("[" + getElapsedTime() + "] Thread-" + (threadId + 1) + 
                         " excede necesidad máxima");
                 }
                 return;
@@ -142,7 +142,7 @@ public class Deadlock_banquero {
             // Verificar recursos disponibles
             if (monto > disponible[this.numeroCuenta]) {
                 if (verbose) {
-                    System.out.println("[" + getElapsedTime() + "] ⏳ Thread-" + (threadId + 1) + 
+                    System.out.println("[" + getElapsedTime() + "] Thread-" + (threadId + 1) + 
                         " espera recursos");
                 }
                 return;
@@ -155,7 +155,7 @@ public class Deadlock_banquero {
             
             // Verificar estado seguro
             if (verbose) {
-                System.out.println("[" + getElapsedTime() + "] 🔍 Thread-" + (threadId + 1) + 
+                System.out.println("[" + getElapsedTime() + "] Thread-" + (threadId + 1) + 
                     " verificando estado seguro...");
             }
             
@@ -166,20 +166,20 @@ public class Deadlock_banquero {
                 necesidad[threadId][this.numeroCuenta] += monto;
                 
                 if (verbose) {
-                    System.out.println("[" + getElapsedTime() + "] ⚠️  Thread-" + (threadId + 1) + 
+                    System.out.println("[" + getElapsedTime() + "] Thread-" + (threadId + 1) + 
                         " RECHAZADO - Estado inseguro");
                 }
                 return;
             }
             
             if (verbose) {
-                System.out.println("[" + getElapsedTime() + "] ✅ Thread-" + (threadId + 1) + 
+                System.out.println("[" + getElapsedTime() + "] Thread-" + (threadId + 1) + 
                     " APROBADO - Estado seguro mantiene");
             }
             
             // Realizar la transferencia real (SIN synchronized adicional)
             if (verbose) {
-                System.out.println("[" + getElapsedTime() + "] 🔒 Thread-" + (threadId + 1) + 
+                System.out.println("[" + getElapsedTime() + "] Thread-" + (threadId + 1) + 
                     " accede a cuentas " + this.numeroCuenta + " y " + destino.numeroCuenta + 
                     " (protegido por lock global)");
             }
@@ -211,7 +211,7 @@ public class Deadlock_banquero {
             necesidad[threadId][this.numeroCuenta] += monto;
             
             if (verbose) {
-                System.out.println("[" + getElapsedTime() + "] 🔓 Thread-" + (threadId + 1) + 
+                System.out.println("[" + getElapsedTime() + "] Thread-" + (threadId + 1) + 
                     " liberó recursos de cuenta " + this.numeroCuenta);
             }
         } // fin del synchronized(LOCK)
@@ -299,7 +299,7 @@ public class Deadlock_banquero {
                     int destino = transferencias[threadNum][j][1];
                     int monto = transferencias[threadNum][j][2];
                     
-                    System.out.println("[" + getElapsedTime() + "] ▶️  Thread-" + (threadNum + 1) + 
+                    System.out.println("[" + getElapsedTime() + "] Thread-" + (threadNum + 1) + 
                         " inicia Transferencia " + (j+1) + ": " + origen + "→" + destino + ", $" + monto);
                     
                     cuentas[origen].transferir(cuentas[destino], monto, threadNum);
@@ -307,13 +307,13 @@ public class Deadlock_banquero {
             }, "Thread-" + (i + 1));
         }
         
-        System.out.println("🚀 Iniciando threads...\n");
+        System.out.println("Iniciando threads...\n");
         for (int i = 0; i < 10; i++) {
             threads[i].start();
             try { Thread.sleep(20); } catch (InterruptedException e) {} 
         }
         
-        System.out.println("\n⏰ Esperando hasta 30 segundos para que completen...\n");
+        System.out.println("\nEsperando hasta 30 segundos para que completen...\n");
         
         boolean timeout = false;
         for (Thread thread : threads) {
@@ -332,7 +332,7 @@ public class Deadlock_banquero {
         System.out.println("                              Tiempo transcurrido: " + getElapsedTime());
         System.out.println("═══════════════════════════════════════════════════════════════════════════════════════════════════\n");
         
-        System.out.println("✅ TRANSFERENCIAS COMPLETADAS: " + transferenciasExitosas.get() + "/30");
+        System.out.println("\nTRANSFERENCIAS COMPLETADAS: " + transferenciasExitosas.get() + "/30");
         
         System.out.println("\nSALDOS FINALES:");
         System.out.println("─────────────────────────────────");
@@ -346,15 +346,15 @@ public class Deadlock_banquero {
         System.out.printf("  Total:    $%-6.0f\n", totalFinal);
         
         if (Math.abs(totalFinal - 15000) < 0.01) {
-            System.out.println("✅ TOTAL DE SALDOS CORRECTO: $15,000 (conservación del dinero)");
+            System.out.println("TOTAL DE SALDOS CORRECTO: $15,000 (conservación del dinero)");
         } else {
-            System.out.println("❌ ERROR: Total de saldos incorrecto. Debería ser $15,000");
+            System.out.println("ERROR: Total de saldos incorrecto. Debería ser $15,000");
         }
         
         if (timeout) {
-            System.out.println("\n⚠️  TIMEOUT: Algunos threads no completaron (posible livelock)");
+            System.out.println("\nTIMEOUT: Algunos threads no completaron (posible livelock)");
         } else {
-            System.out.println("\n✅ Todas las transferencias completadas - Sin deadlock garantizado");
+            System.out.println("\nTodas las transferencias completadas - Sin deadlock garantizado");
         }
     }
 }
