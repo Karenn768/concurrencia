@@ -234,7 +234,7 @@ java starvation.starvation_con_solucion.StarvationConSolucion
 ```
 
 **Resultado Esperado:**
-- Todas las tareas procesadas (20/20)
+- No ocurre starvation
 - Prioridades aumentando con el tiempo
 - Distribución equitativa de recursos
 - Sin tareas rechazadas
