@@ -438,25 +438,5 @@ jvisualvm # Profiler completo
 
 Este proyecto es de código abierto con fines **educativos**. Libre para usar, modificar y distribuir con atribución.
 
----
 
-## FAQ
 
-**P: ¿Por qué el deadlock no siempre ocurre en la versión con problema?**  
-R: El deadlock depende del timing de los hilos. Los sleeps fuerzan condiciones más probables, pero en sistemas rápidos puede no manifestarse en cada ejecución.
-
-**P: ¿Cuál solución de race condition es mejor: Mutex o Semáforo?**  
-R: Para exclusión mutua simple, Mutex (`ReentrantLock`) es más eficiente. Los semáforos son mejores cuando necesitas controlar acceso de múltiples hilos simultáneos (ej: pool de conexiones).
-
-**P: ¿El aging puede causar inversión de prioridad?**  
-R: Sí, es intencional. El aging permite que tareas originalmente de baja prioridad eventualmente superen a las de alta prioridad si han esperado suficiente tiempo.
-
----
-
-<div align="center">
-
-**⭐ Si este proyecto te ayudó, considera darle una estrella ⭐**
-
-[Reportar Bug](https://github.com/Karenn768/concurrencia/issues) • [Solicitar Feature](https://github.com/Karenn768/concurrencia/issues) • [Hacer Pregunta](https://github.com/Karenn768/concurrencia/discussions)
-
-</div>
