@@ -42,11 +42,9 @@ public class StarvationConProblema {
         private final ReentrantLock lock = new ReentrantLock();
         private final Condition notFull = lock.newCondition();
         private final Condition notEmpty = lock.newCondition();
-        private final Comparator<Task> comparator;
 
         public BoundedPriorityQueue(int capacity, Comparator<Task> comparator) {
             this.capacity = capacity;
-            this.comparator = comparator;
             this.queue = new PriorityQueue<>(capacity, comparator);
         }
 
