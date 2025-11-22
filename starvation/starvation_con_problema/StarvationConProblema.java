@@ -2,6 +2,7 @@ package starvation.starvation_con_problema;
 import java.util.concurrent.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.*;
 
 public class StarvationConProblema {
 
@@ -32,8 +33,71 @@ public class StarvationConProblema {
        public String toString() {
            return type.name();
        }
-    }      
+    }
 
+    // Cola con capacidad acotada que respeta prioridades
+    static class BoundedPriorityQueue {
+        private final int capacity;
+        private final PriorityQueue<Task> queue;
+        private final ReentrantLock lock = new ReentrantLock();
+        private final Condition notFull = lock.newCondition();
+        private final Condition notEmpty = lock.newCondition();
+        private final Comparator<Task> comparator;
+
+        public BoundedPriorityQueue(int capacity, Comparator<Task> comparator) {
+            this.capacity = capacity;
+            this.comparator = comparator;
+            this.queue = new PriorityQueue<>(capacity, comparator);
+        }
+
+        public void put(Task task) throws InterruptedException {
+            lock.lock();
+            try {
+                // Bloquea si la cola está llena
+                while (queue.size() >= capacity) {
+                    notFull.await();
+                }
+                queue.add(task);
+                notEmpty.signal(); // Despierta a consumidores
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        public Task poll(long timeout, TimeUnit unit) throws InterruptedException {
+            lock.lock();
+            try {
+                long nanos = unit.toNanos(timeout);
+                while (queue.isEmpty()) {
+                    nanos = notEmpty.awaitNanos(nanos);
+                    if (nanos <= 0) return null;
+                }
+                Task task = queue.poll();
+                notFull.signal(); // Despierta a productores
+                return task;
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        public int size() {
+            lock.lock();
+            try {
+                return queue.size();
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        public List<Task> copy() {
+            lock.lock();
+            try {
+                return new ArrayList<>(queue);
+            } finally {
+                lock.unlock();
+            }
+        }
+    }
 
     private static final int CAPACITY = 20;
     private static final long SIMULATION_TIME_MS = 10_000;
@@ -59,15 +123,15 @@ public class StarvationConProblema {
     private static final AtomicInteger processedM = new AtomicInteger();
     private static final AtomicInteger processedB = new AtomicInteger();
 
-    // Comparador estático: A=0, M=1, B=2
+    // Comparador estático: A=0, M=1, B=3
     private static final Comparator<Task> STATIC_PRIORITY_COMPARATOR =
         (t1, t2) -> Integer.compare(t1.type.priority, t2.type.priority);
 
     private static long startTime;
 
     public static void main(String[] args) throws InterruptedException {
-        BlockingQueue<Task> queue = new PriorityBlockingQueue<>(CAPACITY, STATIC_PRIORITY_COMPARATOR);
-
+        // Cola con capacidad acotada y prioridades
+        BoundedPriorityQueue queue = new BoundedPriorityQueue(CAPACITY, STATIC_PRIORITY_COMPARATOR);
 
         ExecutorService producerPool = Executors.newFixedThreadPool(5);
         ExecutorService consumerPool = Executors.newFixedThreadPool(3);
@@ -77,7 +141,7 @@ public class StarvationConProblema {
 
         monitor.scheduleAtFixedRate(() -> {
            long now = System.currentTimeMillis();
-           List<Task> copy = new ArrayList<>(queue);
+           List<Task> copy = queue.copy();
 
            long pendientesA = copy.stream().filter(t -> t.type == Task.Type.A).count();
            long pendientesM = copy.stream().filter(t -> t.type == Task.Type.M).count();
@@ -87,27 +151,19 @@ public class StarvationConProblema {
            int procesadasM = processedM.get();
            int procesadasB = processedB.get();
 
-           int generadasA = generatedA.get();
-           int generadasM = generatedM.get();
-           int generadasB = generatedB.get();
-
-           int sinProcesarA = generadasA - procesadasA;
-           int sinProcesarM = generadasM - procesadasM;
-           int sinProcesarB = generadasB - procesadasB;
-
            String state = String.format(
-               "t=%.1fs | cola size=%d | Pendientes (A=%d, M=%d, B=%d) | Procesadas (A=%d, M=%d, B=%d) | Sin procesar (A=%d, M=%d, B=%d)",
+               "t=%.1fs | cola size=%d/%d | Pendientes (A=%d, M=%d, B=%d) | Procesadas (A=%d, M=%d, B=%d)",
                (now - startTime) / 1000.0,
+               copy.size(),
                CAPACITY,
                pendientesA, pendientesM, pendientesB,
-               procesadasA, procesadasM, procesadasB,
-               sinProcesarA, sinProcesarM, sinProcesarB);
+               procesadasA, procesadasM, procesadasB);
        
            System.out.println("[MONITOR] " + state);
        
            // Advertencia starvation
            if (pendientesB > 5) {
-               System.out.println("*** ¡ADVERTENCIA! STARVATION DETECTADA ***");
+               System.out.println("*** ¡ADVERTENCIA! STARVATION DETECTADA: " + pendientesB + " tareas B esperando ***");
            }
     }, 2, 1, TimeUnit.SECONDS);
 
@@ -138,41 +194,40 @@ public class StarvationConProblema {
         consumerPool.awaitTermination(2, TimeUnit.SECONDS);
 
         // Resultados finales
-    System.out.println("\n" + "=".repeat(60));
-    System.out.println("✅ SIMULACIÓN FINALIZADA (CON STARVATION)");
-    System.out.println("=".repeat(60));
+        System.out.println("\n" + "=".repeat(60));
+        System.out.println("✅ SIMULACIÓN FINALIZADA (CON STARVATION)");
+        System.out.println("=".repeat(60));
         
-    // Generadas por tipo
-    int genA = generatedA.get();
-    int genM = generatedM.get();
-    int genB = generatedB.get();
-    int totalGenerated = genA + genM + genB;
-    System.out.printf("Generadas: A=%d, M=%d, B=%d | Total=%d%n", genA, genM, genB, totalGenerated);
+        // Generadas por tipo
+        int genA = generatedA.get();
+        int genM = generatedM.get();
+        int genB = generatedB.get();
+        int totalGenerated = genA + genM + genB;
+        System.out.printf("Generadas: A=%d, M=%d, B=%d | Total=%d%n", genA, genM, genB, totalGenerated);
         
-    // Procesadas por tipo
-    int procA = processedA.get();
-    int procM = processedM.get();
-    int procB = processedB.get();
-    int totalProcessed = procA + procM + procB;
-    System.out.printf("Procesadas: A=%d, M=%d, B=%d | Total=%d%n", procA, procM, procB, totalProcessed);
+        // Procesadas por tipo
+        int procA = processedA.get();
+        int procM = processedM.get();
+        int procB = processedB.get();
+        int totalProcessed = procA + procM + procB;
+        System.out.printf("Procesadas: A=%d, M=%d, B=%d | Total=%d%n", procA, procM, procB, totalProcessed);
         
-    // Pendientes por tipo y total
-    int pendingA = genA - procA;
-    int pendingM = genM - procM;
-    int pendingB = genB - procB;
-    int totalPending = pendingA + pendingM + pendingB;
-    System.out.printf("Pendientes: A=%d, M=%d, B=%d | Total=%d%n", pendingA, pendingM, pendingB, totalPending);
+        // Pendientes por tipo y total
+        int pendingA = genA - procA;
+        int pendingM = genM - procM;
+        int pendingB = genB - procB;
+        int totalPending = pendingA + pendingM + pendingB;
+        System.out.printf("Pendientes: A=%d, M=%d, B=%d | Total=%d%n", pendingA, pendingM, pendingB, totalPending);
         
-    // Mensajes específicos sobre B
-    if (pendingB == 0) {
-        System.out.println("🎉 Todas las tareas B fueron procesadas: aging funcionó correctamente.");
-    } else {
-        System.out.println("ℹ️ Quedaron " + pendingB + " tareas B (esperado por límite de tiempo).");
+        // Mensajes específicos
+        if (pendingB == 0) {
+            System.out.println("🎉 Todas las tareas B fueron procesadas: aging funcionó correctamente.");
+        } else {
+            System.out.println("ℹ️ Quedaron " + pendingB + " tareas B (esperado por starvation).");
+        }
     }
 
-    }
-
-    private static void producer(int id, BlockingQueue<Task> queue) {
+    private static void producer(int id, BoundedPriorityQueue queue) {
         Random rand = new Random(id * 12345);
         int nextIndex = 0;
 
@@ -189,42 +244,42 @@ public class StarvationConProblema {
 
             Task task = new Task(type);
             try {
-                if (queue.offer(task, 100, TimeUnit.MILLISECONDS)) {
-                    switch (type) {
-                        case A -> generatedA.incrementAndGet();
-                        case M -> generatedM.incrementAndGet();
-                        case B -> generatedB.incrementAndGet();
-                    }
-                    
+                // put() bloqueará si la cola está llena (capacidad 20)
+                queue.put(task);
+                
+                switch (type) {
+                    case A -> generatedA.incrementAndGet();
+                    case M -> generatedM.incrementAndGet();
+                    case B -> generatedB.incrementAndGet();
                 }
-            
+
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
             }
 
-            try { Thread.sleep(100); } catch (InterruptedException e) { break; }
+            try { Thread.sleep(10); } catch (InterruptedException e) { break; }
         }
     }
 
-    private static void consumer(int id, BlockingQueue<Task> queue) {
+    private static void consumer(int id, BoundedPriorityQueue queue) {
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                Task task = queue.poll(200, TimeUnit.MILLISECONDS);
-                if (task == null) continue;
+                    Task task = queue.poll(100, TimeUnit.MILLISECONDS);
+                    if (task == null) continue;
 
-                long procTimeMs = switch (task.type) {
-                    case A -> 50;
-                    case M -> 100;
-                    case B -> 150;
-                };
-                Thread.sleep(procTimeMs);
+                    long procTimeMs = switch (task.type) {
+                        case A -> 50;
+                        case M -> 100;
+                        case B -> 150;
+                    };
+                    Thread.sleep(procTimeMs);
 
-                switch (task.type) {
-                    case A -> processedA.incrementAndGet();
-                    case M -> processedM.incrementAndGet();
-                    case B -> processedB.incrementAndGet();
-                }
+                    switch (task.type) {
+                        case A -> processedA.incrementAndGet();
+                        case M -> processedM.incrementAndGet();
+                        case B -> processedB.incrementAndGet();
+                    }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;

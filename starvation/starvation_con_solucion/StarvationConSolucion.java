@@ -73,21 +73,13 @@ public class StarvationConSolucion {
             int procesadasM = processedM.get();
             int procesadasB = processedB.get();
 
-            int generadasA = generatedA.get();
-            int generadasM = generatedM.get();
-            int generadasB = generatedB.get();
-
-            int sinProcesarA = generadasA - procesadasA;
-            int sinProcesarM = generadasM - procesadasM;
-            int sinProcesarB = generadasB - procesadasB;
 
             String state = String.format(
-                "t=%.1fs | cola size=%d | Pendientes (A=%d, M=%d, B=%d) | Procesadas (A=%d, M=%d, B=%d) | Sin procesar (A=%d, M=%d, B=%d)",
+                "t=%.1fs | cola size=%d | Pendientes (A=%d, M=%d, B=%d) | Procesadas (A=%d, M=%d, B=%d)",
                 (now - startTime) / 1000.0,
                 copy.size(),
                 pendientesA, pendientesM, pendientesB,
-                procesadasA, procesadasM, procesadasB,
-                sinProcesarA, sinProcesarM, sinProcesarB
+                procesadasA, procesadasM, procesadasB
             );
             System.out.println("[MONITOR] " + state);
 
@@ -184,7 +176,7 @@ public class StarvationConSolucion {
                 long now = System.currentTimeMillis();
                 
                 // Inspeccionar sin modificar
-                List<Task> snapshot = new ArrayList<>(queue);
+                List<Task> snapshot = new LinkedList<>(queue);
                 
                 if (snapshot.isEmpty()) {
                     Thread.sleep(100);
@@ -200,7 +192,7 @@ public class StarvationConSolucion {
                         return Long.compare(t1.creationTime, t2.creationTime);
                     })
                     .orElse(null);
-                
+                Thread.sleep(30); 
                 if (best == null) continue;
                 
                 // Extraer SOLO esa tarea
