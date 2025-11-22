@@ -3,6 +3,7 @@ package starvation.starvation_con_solucion;
 import java.util.concurrent.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class StarvationConSolucion {
 
@@ -52,6 +53,17 @@ public class StarvationConSolucion {
     private static final AtomicInteger processedA = new AtomicInteger();
     private static final AtomicInteger processedM = new AtomicInteger();
     private static final AtomicInteger processedB = new AtomicInteger();
+    
+    // Medición de tiempos de espera
+    private static final AtomicLong maxWaitA = new AtomicLong(0);
+    private static final AtomicLong maxWaitM = new AtomicLong(0);
+    private static final AtomicLong maxWaitB = new AtomicLong(0);
+    private static final AtomicLong totalWaitA = new AtomicLong(0);
+    private static final AtomicLong totalWaitM = new AtomicLong(0);
+    private static final AtomicLong totalWaitB = new AtomicLong(0);
+    private static final AtomicInteger countWaitA = new AtomicInteger(0);
+    private static final AtomicInteger countWaitM = new AtomicInteger(0);
+    private static final AtomicInteger countWaitB = new AtomicInteger(0);
 
     private static long startTime;
 
@@ -134,6 +146,44 @@ public class StarvationConSolucion {
         } else {
             System.out.println("ℹ️ Quedaron " + pendingB + " tareas B (esperado por límite de tiempo).");
         }
+        
+        // NUEVA SALIDA: Análisis detallado de tiempos de espera por tipo
+        System.out.println("\n" + "=".repeat(60));
+        System.out.println("⏱️  ANÁLISIS DETALLADO DE TIEMPOS DE ESPERA");
+        System.out.println("=".repeat(60));
+        
+        printWaitTimeStats("TAREAS A (Prioridad 0)", maxWaitA, totalWaitA, countWaitA);
+        printWaitTimeStats("TAREAS M (Prioridad 1)", maxWaitM, totalWaitM, countWaitM);
+        printWaitTimeStats("TAREAS B (Prioridad 3)", maxWaitB, totalWaitB, countWaitB);
+        
+        // Veredicto final
+        System.out.println("\n" + "-".repeat(60));
+        long maxB = maxWaitB.get();
+        if (maxB <= 1000) {
+            System.out.println("✅ AGING EFECTIVO: Tareas B procesadas dentro de 1 segundo");
+        } else if (maxB <= 3000) {
+            System.out.println("⚠️  AGING PARCIAL: Tareas B esperaron hasta " + (maxB/1000.0) + " segundos");
+        } else {
+            System.out.println("❌ AGING INSUFICIENTE: Tareas B esperaron más de 3 segundos");
+        }
+    }
+    
+    private static void printWaitTimeStats(String label, AtomicLong maxWait, 
+                                          AtomicLong totalWait, AtomicInteger count) {
+        long max = maxWait.get();
+        int cnt = count.get();
+        long total = totalWait.get();
+        
+        System.out.println("\n" + label);
+        System.out.printf("  Max wait:    %d ms (%.2f s)%n", max, max / 1000.0);
+        
+        if (cnt > 0) {
+            long avg = total / cnt;
+            System.out.printf("  Avg wait:    %d ms (%.2f s)%n", avg, avg / 1000.0);
+            System.out.printf("  Count:       %d tasks%n", cnt);
+        } else {
+            System.out.println("  Count:       0 tasks");
+        }
     }
 
     private static void producer(int id, BlockingQueue<Task> queue) {
@@ -169,7 +219,7 @@ public class StarvationConSolucion {
         }
     }
 
-    // 🚀 Consumidor OPTIMIZADO
+    // 🚀 Consumidor OPTIMIZADO con medición de tiempos
     private static void smartConsumer(int id, BlockingQueue<Task> queue) {
         while (!Thread.currentThread().isInterrupted()) {
             try {
@@ -197,6 +247,29 @@ public class StarvationConSolucion {
                 
                 // Extraer SOLO esa tarea
                 if (!queue.remove(best)) continue;
+                
+                // Calcular tiempo de espera
+                long now2 = System.currentTimeMillis();
+                long waitTime = now2 - best.creationTime;
+                
+                // Registrar tiempos por tipo
+                switch (best.type) {
+                    case A -> {
+                        maxWaitA.updateAndGet(prev -> Math.max(prev, waitTime));
+                        totalWaitA.addAndGet(waitTime);
+                        countWaitA.incrementAndGet();
+                    }
+                    case M -> {
+                        maxWaitM.updateAndGet(prev -> Math.max(prev, waitTime));
+                        totalWaitM.addAndGet(waitTime);
+                        countWaitM.incrementAndGet();
+                    }
+                    case B -> {
+                        maxWaitB.updateAndGet(prev -> Math.max(prev, waitTime));
+                        totalWaitB.addAndGet(waitTime);
+                        countWaitB.incrementAndGet();
+                    }
+                }
                 
                 // Procesar
                 long procTimeMs = switch (best.type) {

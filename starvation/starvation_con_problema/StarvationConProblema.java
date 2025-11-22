@@ -2,6 +2,7 @@ package starvation.starvation_con_problema;
 import java.util.concurrent.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.*;
 
 public class StarvationConProblema {
@@ -120,6 +121,11 @@ public class StarvationConProblema {
     private static final AtomicInteger processedA = new AtomicInteger();
     private static final AtomicInteger processedM = new AtomicInteger();
     private static final AtomicInteger processedB = new AtomicInteger();
+    
+    // Medición de tiempos de espera
+    private static final AtomicLong maxWaitB = new AtomicLong(0);
+    private static final AtomicLong totalWaitB = new AtomicLong(0);
+    private static final AtomicInteger countWaitB = new AtomicInteger(0);
 
     // Comparador estático: A=0, M=1, B=3
     private static final Comparator<Task> STATIC_PRIORITY_COMPARATOR =
@@ -189,7 +195,18 @@ public class StarvationConProblema {
         consumerPool.shutdown();
 
         // Esperar que consumidores terminen y vacíen cola (máx 2s)
-        consumerPool.awaitTermination(2, TimeUnit.SECONDS);
+        try {
+            if (!monitor.awaitTermination(1, TimeUnit.SECONDS)) {
+                System.err.println("Monitor no terminó a tiempo");
+            }
+            if (!consumerPool.awaitTermination(2, TimeUnit.SECONDS)) {
+                consumerPool.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            monitor.shutdownNow();
+            consumerPool.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
 
         // Resultados finales
         System.out.println("\n" + "=".repeat(60));
@@ -222,6 +239,33 @@ public class StarvationConProblema {
             System.out.println("🎉 Todas las tareas B fueron procesadas: aging funcionó correctamente.");
         } else {
             System.out.println("ℹ️ Quedaron " + pendingB + " tareas B (esperado por starvation).");
+        }
+        
+        // NUEVA SALIDA: Tiempos de espera de tareas B
+        System.out.println("\n" + "-".repeat(60));
+        System.out.println("⏱️  ANÁLISIS DE TIEMPOS DE ESPERA (TAREAS B)");
+        System.out.println("-".repeat(60));
+        
+        long maxWait = maxWaitB.get();
+        int countB = countWaitB.get();
+        long totalWait = totalWaitB.get();
+        
+        System.out.printf("⏱️  Tiempo máximo de espera de una tarea B: %d ms (%.2f s)%n", 
+            maxWait, maxWait / 1000.0);
+        
+        if (countB > 0) {
+            long avgWait = totalWait / countB;
+            System.out.printf("⏱️  Tiempo promedio de espera de tareas B: %d ms (%.2f s)%n", 
+                avgWait, avgWait / 1000.0);
+            System.out.printf("⏱️  Total de tareas B procesadas con medición: %d%n", countB);
+        }
+        
+        if (maxWait > 5000) {
+            System.out.println("⚠️  STARVATION SEVERA: Tareas B esperaron más de 5 segundos");
+        } else if (maxWait > 2000) {
+            System.out.println("⚠️  STARVATION MODERADA: Tareas B esperaron más de 2 segundos");
+        } else {
+            System.out.println("✅ Tiempos de espera aceptables para tareas B");
         }
     }
 
@@ -263,21 +307,34 @@ public class StarvationConProblema {
     private static void consumer(int id, BoundedPriorityQueue queue) {
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                    Task task = queue.poll(100, TimeUnit.MILLISECONDS);
-                    if (task == null) continue;
+                Task task = queue.poll(100, TimeUnit.MILLISECONDS);
+                if (task == null) continue;
 
-                    long procTimeMs = switch (task.type) {
-                        case A -> 50;
-                        case M -> 100;
-                        case B -> 150;
-                    };
-                    Thread.sleep(procTimeMs);
+                // Calcular tiempo de espera en cola
+                long now = System.currentTimeMillis();
+                long waitTime = now - task.creationTime;
 
-                    switch (task.type) {
-                        case A -> processedA.incrementAndGet();
-                        case M -> processedM.incrementAndGet();
-                        case B -> processedB.incrementAndGet();
-                    }
+                // Registrar tiempos para tareas B
+                if (task.type == Task.Type.B) {
+                    maxWaitB.updateAndGet(prev -> Math.max(prev, waitTime));
+                    totalWaitB.addAndGet(waitTime);
+                    countWaitB.incrementAndGet();
+                }
+
+                long procTimeMs = switch (task.type) {
+                    case A -> 50;
+                    case M -> 100;
+                    case B -> 150;
+                };
+
+                Thread.sleep(procTimeMs);
+
+                switch (task.type) {
+                    case A -> processedA.incrementAndGet();
+                    case M -> processedM.incrementAndGet();
+                    case B -> processedB.incrementAndGet();
+                }
+
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
